@@ -14,7 +14,7 @@ AI-powered trading platform with real-time data, prediction engine, and portfoli
 ## ⚙️ Tech Stack
 
 - Django + DRF
-- React / Next.js
+- React / Next.js / Tailwind
 - FastAPI (ML)
 - Docker + Nginx
 
