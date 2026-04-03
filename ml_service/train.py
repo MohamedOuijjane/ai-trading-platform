@@ -22,8 +22,8 @@ def build_model(seq_len: int, n_features: int):
     """Build and compile the LSTM model."""
     # Import here so the file can be imported without TF installed
     import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import (
+    from keras.models import Sequential
+    from keras.layers import (
         LSTM, Dense, Dropout, BatchNormalization, Input
     )
 
@@ -57,7 +57,7 @@ def train(ticker: str = DEFAULT_TICKER,
     -------
     dict with 'val_accuracy' and 'val_loss' of the best epoch.
     """
-    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+    from keras.callbacks import EarlyStopping, ModelCheckpoint
 
     print(f"\n[train] Starting training for {ticker} …")
 

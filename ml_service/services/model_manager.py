@@ -42,7 +42,7 @@ class ModelManager:
                 raise FileNotFoundError(f"Model for {ticker} not found.")
 
             try:
-                from tensorflow.keras.models import load_model
+                from keras.models import load_model
                 logger.info(f"Loading model for {ticker} from {final_path}")
                 model = load_model(final_path)
                 self._models[ticker] = model

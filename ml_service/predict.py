@@ -24,7 +24,7 @@ def _load_model():
             f"Model not found at {MODEL_PATH}. "
             "Please run train.py first."
         )
-    from tensorflow.keras.models import load_model
+    from keras.models import load_model
     return load_model(MODEL_PATH)
 
 

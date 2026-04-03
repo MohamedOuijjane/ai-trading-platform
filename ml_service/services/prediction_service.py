@@ -37,7 +37,7 @@ def get_prediction(ticker: str) -> PredictionResponse:
         scaler = model_manager.load_scaler(ticker)
 
         # ── 2. Get latest data ────────────────────────────────────────────────────
-        df = get_clean_data(ticker, period="6mo")
+        df = get_clean_data(ticker, period="1y")
 
         # --- DATA VALIDATION LAYER ---
         if df.empty:
