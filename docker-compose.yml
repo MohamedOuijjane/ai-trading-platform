@@ -20,7 +20,7 @@ services:
       - "3000:3000"
 
   ml-service:
-    build: ./ml-service
+    build: ./ml_service
     ports:
       - "5000:5000"
 
