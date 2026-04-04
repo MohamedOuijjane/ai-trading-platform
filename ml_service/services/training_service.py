@@ -48,8 +48,8 @@ def build_sequences(data: np.ndarray, seq_len: int, feature_cols: list):
 def build_model(seq_len: int, n_features: int):
     """Build and compile the LSTM model for 3-class classification."""
     import tensorflow as tf
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import (
+    from keras.models import Sequential
+    from keras.layers import (
         LSTM, Dense, Dropout, BatchNormalization, Input
     )
 
@@ -78,7 +78,7 @@ def train(ticker: str,
     """
     Full training pipeline with RobustScaler and enhanced metrics.
     """
-    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+    from keras.callbacks import EarlyStopping, ModelCheckpoint
     from sklearn.preprocessing import RobustScaler
     from sklearn.metrics import classification_report, accuracy_score
     from sklearn.utils.class_weight import compute_class_weight

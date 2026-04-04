@@ -14,7 +14,7 @@ from services.model_manager import model_manager
 from services.backtesting_service import run_backtest
 from services.metrics_tracker import get_accuracy_report
 
-# ... (in existing router)
+router = APIRouter()
 
 @router.get("/accuracy/{ticker}", tags=["Analysis"])
 def get_accuracy(ticker: str):
