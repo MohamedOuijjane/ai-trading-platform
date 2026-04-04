@@ -1,0 +1,101 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+
+<!-- BANNIÈRE CONNEXION -->
+<ul class="messagelist">
+  <li class="success">
+    Connecté en tant que <strong>{{ user.username }}</strong> — Panel Admin opérationnel !
+  </li>
+</ul>
+
+<!-- STAT CARDS -->
+<div class="stat-cards">
+  <div class="stat-card">
+    <div class="lbl">Utilisateurs</div>
+    <div class="val" id="sv-users">—</div>
+    <div class="sub" id="ss-users">Chargement…</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Trades</div>
+    <div class="val" id="sv-trades">0</div>
+    <div class="sub" id="ss-trades">Aucun pour l'instant</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Prédictions</div>
+    <div class="val" id="sv-pred">0</div>
+    <div class="sub" id="ss-pred">Aucune pour l'instant</div>
+  </div>
+  <div class="stat-card">
+    <div class="lbl">Config Bot</div>
+    <div class="val" id="sv-bot">0</div>
+    <div class="sub" id="ss-bot">Non configuré</div>
+  </div>
+</div>
+
+<!-- MODÈLES DISPONIBLES -->
+<div class="model-table-card">
+  <div class="mt-header">
+    <h2>Modèles disponibles</h2>
+    <a href="{% url 'admin:index' %}">Administration</a>
+  </div>
+
+  {% for app in app_list %}
+    {% for model in app.models %}
+    <div class="model-row">
+      <div class="model-row-left">
+        <!-- icône selon le nom du modèle -->
+        {% with name=model.object_name|lower %}
+        <div class="model-icon
+          {% if 'trade' in name %}yellow
+          {% elif 'predict' in name %}purple
+          {% elif 'bot' in name or 'config' in name %}green
+          {% elif 'price' in name or 'market' in name %}blue
+          {% elif 'portfolio' in name %}teal
+          {% elif 'user' in name %}purple
+          {% else %}blue{% endif %}">
+          {% if 'trade' in name %}📈
+          {% elif 'predict' in name %}👤
+          {% elif 'bot' in name or 'config' in name %}🛒
+          {% elif 'price' in name or 'market' in name %}📄
+          {% elif 'portfolio' in name %}💼
+          {% elif 'user' in name %}👤
+          {% else %}📦{% endif %}
+        </div>
+        {% endwith %}
+        <span class="model-name">{{ model.name }}</span>
+      </div>
+      <div class="model-actions">
+        {% if model.add_url %}
+          <a class="btn-ol" href="{{ model.add_url }}">+ Ajouter</a>
+        {% endif %}
+        {% if model.admin_url %}
+          <a class="btn-ol" href="{{ model.admin_url }}">Voir</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% empty %}
+    <div class="model-row">
+      <span style="color:var(--text-muted);font-size:.9rem;">Aucun modèle enregistré.</span>
+    </div>
+  {% endfor %}
+</div>
+
+<script>
+// Charger le nombre d'utilisateurs
+fetch('/admin/auth/user/', { credentials: 'same-origin' })
+  .then(r => r.text())
+  .then(html => {
+    const m = html.match(/(\d+)\s+utilisateur/i) || html.match(/<p class="paginator[^"]*">.*?(\d+)/s);
+    const n = m ? m[1] : '1';
+    document.getElementById('sv-users').textContent = n;
+    document.getElementById('ss-users').textContent = '{{ user.username }}';
+  }).catch(() => {
+    document.getElementById('sv-users').textContent = '1';
+    document.getElementById('ss-users').textContent = '{{ user.username }}';
+  });
+</script>
+
+{% endblock %}

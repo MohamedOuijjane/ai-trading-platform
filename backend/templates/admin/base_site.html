@@ -1,0 +1,317 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}TradingBot AI — Admin{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <a href="{% url 'admin:index' %}">TradingBot AI</a>
+</div>
+{% endblock %}
+
+{% block usertools %}
+<div id="user-tools-custom">
+  <div class="user-avatar">
+    {% if user.get_full_name %}{{ user.get_full_name|slice:":2"|upper }}{% else %}{{ user.username|slice:":2"|upper }}{% endif %}
+  </div>
+  <span class="username-text">{{ user.username }}</span>
+  <a href="{% url 'admin:logout' %}">Déconnexion</a>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark:    #1a2035;
+    --bg-sidebar: #1e2740;
+    --accent:     #4f8ef7;
+    --accent2:    #a78bfa;
+    --success:    #22c55e;
+    --text-main:  #1e293b;
+    --text-muted: #64748b;
+    --text-light: #94a3b8;
+    --border:     #e2e8f0;
+    --radius:     12px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif !important;
+    background: #f1f5fb !important;
+  }
+
+  /* ── TOP BAR ── */
+  #header {
+    background: var(--bg-dark) !important;
+    padding: 0 24px !important;
+    height: 60px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,.35) !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+  }
+
+  #site-name a {
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    text-decoration: none !important;
+  }
+
+  /* user tools */
+  #user-tools { display: none !important; }
+  #user-tools-custom {
+    display: flex; align-items: center; gap: 14px;
+  }
+  #user-tools-custom .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent2);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .78rem; color: #fff;
+  }
+  #user-tools-custom .username-text { color: #fff; font-size: .88rem; font-weight: 500; }
+  #user-tools-custom a { color: rgba(255,255,255,.7) !important; font-size: .82rem; text-decoration: none; }
+  #user-tools-custom a:hover { color: #fff !important; }
+
+  /* hide default django nav */
+  #nav-sidebar, .toggle-nav-sidebar, #nav-sidebar-toggle,
+  #nav-sidebar-toggle-label { display: none !important; }
+
+  /* ── LAYOUT ── */
+  #container { display: flex; flex-direction: column; }
+
+  #custom-layout {
+    display: flex;
+    min-height: calc(100vh - 60px);
+  }
+
+  /* ── SIDEBAR ── */
+  #custom-sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--bg-sidebar);
+    padding: 24px 0 20px;
+    flex-shrink: 0;
+  }
+
+  .sb-label {
+    font-size: .67rem; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: rgba(255,255,255,.35);
+    padding: 16px 20px 5px;
+  }
+
+  .sb-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px;
+    font-size: .87rem; font-weight: 500;
+    color: rgba(255,255,255,.6);
+    text-decoration: none;
+    border-left: 3px solid transparent;
+    transition: all .18s;
+  }
+  .sb-link:hover { color: #fff; background: rgba(255,255,255,.06); border-left-color: var(--accent); }
+  .sb-link.active { color: #fff !important; background: rgba(79,142,247,.12); border-left-color: var(--accent) !important; }
+
+  .sb-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .sb-dot.purple { background: var(--accent2); }
+  .sb-dot.green  { background: var(--success); }
+  .sb-dot.orange { background: #f97316; }
+  .sb-dot.teal   { background: #14b8a6; }
+  .sb-dot.blue   { background: #38bdf8; }
+
+  /* ── PAGE ── */
+  #custom-page {
+    flex: 1; padding: 28px 30px; overflow-y: auto;
+    background: #f1f5fb;
+  }
+
+  /* messages */
+  .messagelist { list-style: none; margin-bottom: 22px; }
+  .messagelist li {
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: var(--radius); padding: 13px 18px;
+    color: #15803d; font-size: .9rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .messagelist li::before {
+    content: "✓"; width: 22px; height: 22px;
+    background: #22c55e; color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 700; flex-shrink: 0;
+  }
+  .messagelist li.error { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+  .messagelist li.error::before { content: "✕"; background: #ef4444; }
+
+  /* stat cards */
+  .stat-cards {
+    display: grid; grid-template-columns: repeat(4,1fr);
+    gap: 16px; margin-bottom: 26px;
+  }
+  .stat-card {
+    background: #fff; border-radius: var(--radius);
+    padding: 20px 22px; border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  }
+  .stat-card .lbl { font-size: .8rem; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+  .stat-card .val { font-size: 2rem; font-weight: 700; color: var(--text-main); line-height: 1; margin-bottom: 4px; }
+  .stat-card .sub { font-size: .78rem; color: var(--text-light); }
+
+  /* model table */
+  .model-table-card {
+    background: #fff; border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.04); overflow: hidden;
+  }
+  .mt-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 22px; border-bottom: 1px solid var(--border);
+  }
+  .mt-header h2 { font-size: 1rem; font-weight: 700; color: var(--text-main); }
+  .mt-header a  { font-size: .82rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+
+  .model-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 22px; border-bottom: 1px solid #f1f5f9; transition: background .15s;
+  }
+  .model-row:last-child { border-bottom: none; }
+  .model-row:hover { background: #f8fafc; }
+  .model-row-left { display: flex; align-items: center; gap: 14px; }
+
+  .model-icon {
+    width: 36px; height: 36px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+  .model-icon.yellow { background: #fef9c3; }
+  .model-icon.purple { background: #f3e8ff; }
+  .model-icon.green  { background: #dcfce7; }
+  .model-icon.blue   { background: #dbeafe; }
+  .model-icon.teal   { background: #ccfbf1; }
+
+  .model-name { font-size: .92rem; font-weight: 600; color: var(--text-main); }
+  .model-actions { display: flex; gap: 10px; }
+
+  .btn-ol {
+    padding: 7px 18px; border-radius: 8px;
+    border: 1.5px solid var(--border); background: #fff;
+    font-size: .82rem; font-weight: 600; color: var(--text-main);
+    cursor: pointer; text-decoration: none; transition: all .18s;
+    font-family: 'DM Sans', sans-serif; display: inline-block;
+  }
+  .btn-ol:hover { border-color: var(--accent); color: var(--accent); background: #f0f6ff; }
+
+  /* django default pages */
+  #content { padding: 0 !important; background: transparent !important; }
+  #content-main { padding: 0 !important; }
+
+  .module {
+    background: #fff !important; border-radius: var(--radius) !important;
+    border: 1px solid var(--border) !important; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04) !important; margin-bottom: 20px !important;
+  }
+  .module caption, .module h2, .module h3 {
+    background: var(--bg-dark) !important; color: #fff !important;
+    padding: 11px 16px !important; font-size: .88rem !important; font-weight: 600 !important;
+  }
+
+  input[type=text], input[type=password], input[type=email],
+  input[type=number], select, textarea {
+    border: 1.5px solid var(--border) !important; border-radius: 8px !important;
+    padding: 8px 12px !important; font-family: 'DM Sans', sans-serif !important; font-size: .9rem !important;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none !important; border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(79,142,247,.12) !important;
+  }
+
+  .submit-row {
+    background: #f8fafc !important; border-top: 1px solid var(--border) !important;
+    padding: 12px 16px !important;
+  }
+  .submit-row input[type=submit] {
+    background: var(--accent) !important; color: #fff !important;
+    border: none !important; border-radius: 8px !important;
+    padding: 9px 20px !important; font-weight: 600 !important; cursor: pointer !important;
+    font-family: 'DM Sans', sans-serif !important;
+  }
+  .object-tools a {
+    background: var(--accent) !important; border-radius: 8px !important;
+    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
+  }
+
+  #footer { display: none !important; }
+
+  @media (max-width: 860px) {
+    .stat-cards { grid-template-columns: repeat(2,1fr); }
+    #custom-sidebar { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content_title %}{% endblock %}
+
+{% block inner-content %}
+<div id="custom-layout">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <nav id="custom-sidebar">
+    <div class="sb-label">Dashboard</div>
+    <a class="sb-link {% if request.path == '/admin/' %}active{% endif %}" href="{% url 'admin:index' %}">
+      <span class="sb-dot"></span> Vue d'ensemble
+    </a>
+
+    <div class="sb-label">Authentification</div>
+    <a class="sb-link {% if '/admin/auth/user' in request.path %}active{% endif %}" href="{% url 'admin:auth_user_changelist' %}">
+      <span class="sb-dot blue"></span> Utilisateurs
+    </a>
+    <a class="sb-link {% if '/admin/auth/group' in request.path %}active{% endif %}" href="{% url 'admin:auth_group_changelist' %}">
+      <span class="sb-dot purple"></span> Groupes
+    </a>
+
+    <div class="sb-label">Trading</div>
+    <a class="sb-link {% if '/admin/trading/trade' in request.path %}active{% endif %}" href="/admin/trading/trade/">
+      <span class="sb-dot orange"></span> Trades
+    </a>
+    <a class="sb-link {% if '/admin/trading/marketprice' in request.path %}active{% endif %}" href="/admin/trading/marketprice/">
+      <span class="sb-dot teal"></span> Prix marché
+    </a>
+    <a class="sb-link {% if '/admin/trading/portfolio' in request.path %}active{% endif %}" href="/admin/trading/portfolio/">
+      <span class="sb-dot green"></span> Portfolios
+    </a>
+
+    <div class="sb-label">IA / ML</div>
+    <a class="sb-link {% if '/admin/trading/prediction' in request.path %}active{% endif %}" href="/admin/trading/prediction/">
+      <span class="sb-dot blue"></span> Prédictions
+    </a>
+    <a class="sb-link {% if '/admin/trading/botconfig' in request.path %}active{% endif %}" href="/admin/trading/botconfig/">
+      <span class="sb-dot purple"></span> Config Bot
+    </a>
+  </nav>
+
+  <!-- ═══ PAGE CONTENT ═══ -->
+  <div id="custom-page">
+    {% if messages %}
+      <ul class="messagelist">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message|capfirst }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,7 +1,21 @@
+# Python
 __pycache__/
 *.pyc
-.env
+
+# Virtual env
 venv/
-node_modules/
-dist/
-.DS_Store
+.venv/
+ml_service/venv/
+ml_service/__pycache__/
+ml_service/api/__pycache__/
+ml_service/api/v1/__pycache__/
+ml_service/core/__pycache__/
+ml_service/services/__pycache__/
+
+# IDE
+.idea/
+.vscode/
+
+# Data & Models (Optional, but usually ignored if too large)
+# ml_service/data/*.csv
+# ml_service/model/*.keras
