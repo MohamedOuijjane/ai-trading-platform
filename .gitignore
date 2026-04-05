@@ -5,17 +5,28 @@ __pycache__/
 # Virtual env
 venv/
 .venv/
+backend/venv/
 ml_service/venv/
-ml_service/__pycache__/
-ml_service/api/__pycache__/
-ml_service/api/v1/__pycache__/
-ml_service/core/__pycache__/
-ml_service/services/__pycache__/
+ml_service/ml_env/
 
 # IDE
 .idea/
 .vscode/
 
-# Data & Models (Optional, but usually ignored if too large)
-# ml_service/data/*.csv
-# ml_service/model/*.keras
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+dist/
+build/
+
+# Env
+*.env
+
+# ML files
+*.h5
+*.pkl
+
+# Logs
+*.log
