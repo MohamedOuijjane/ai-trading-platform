@@ -1,20 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import tradingApi from '../../api/trading.api';
+import useWebSocket from '../../hooks/useWebSocket';
+import SignalCard from './components/SignalCard';
+import { updatePrice, updateSignal } from '../marketSlice';
+import { addPrediction } from '../predictionsSlice';
 
 /**
  * DashboardPage Component
  * Reactive hub for real-time ML predictions.
- * Supports multiple tickers and maintains data consistency via the backend.
  */
 const DashboardPage = () => {
+  const dispatch = useDispatch();
   const [selectedTicker, setSelectedTicker] = useState('AAPL');
   const [inputTicker, setInputTicker] = useState('AAPL');
-  const [prediction, setPrediction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Local cache to avoid redundant API calls within the same component lifecycle
-  const [predictionCache, setPredictionCache] = useState({});
+  const { prices, signals } = useSelector(state => state.market);
+  const { latestPredictions } = useSelector(state => state.predictions);
+
+  // Activate WebSockets for real-time updates
+  const { isConnected } = useWebSocket();
 
   /**
    * Fetches prediction data for the selected ticker.
@@ -22,32 +29,22 @@ const DashboardPage = () => {
   const getTickerPrediction = useCallback(async (ticker) => {
     const symbol = ticker.toUpperCase().trim();
     
-    // Check local cache first
-    if (predictionCache[symbol]) {
-      setPrediction(predictionCache[symbol]);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
     try {
       const data = await tradingApi.getPrediction(symbol);
-      setPrediction(data);
-      
-      // Update cache
-      setPredictionCache(prev => ({
-        ...prev,
-        [symbol]: data
-      }));
+      // Update Redux state
+      dispatch(updatePrice({ ticker: symbol, price: data.price }));
+      dispatch(updateSignal({ ticker: symbol, signal: data.signal }));
+      dispatch(addPrediction(data));
     } catch (err) {
       console.error(`[Prediction Error for ${symbol}]:`, err);
       setError(`Failed to get prediction for ${symbol}. ${err.message}`);
-      setPrediction(null);
     } finally {
       setLoading(false);
     }
-  }, [predictionCache]);
+  }, [dispatch]);
 
   // Trigger fetch when selectedTicker changes
   useEffect(() => {
@@ -64,22 +61,20 @@ const DashboardPage = () => {
     }
   };
 
-  /**
-   * Returns visual styles for signal types
-   */
-  const getSignalBadgeStyle = (signal) => {
-    const base = { padding: '5px 10px', borderRadius: '4px', fontWeight: 'bold', color: 'white' };
-    switch (signal) {
-      case 'BUY': return { ...base, backgroundColor: '#28a745' };
-      case 'SELL': return { ...base, backgroundColor: '#dc3545' };
-      case 'HOLD': return { ...base, backgroundColor: '#6c757d' };
-      default: return { ...base, backgroundColor: '#000' };
-    }
-  };
-
   return (
     <div className="dashboard-container">
-      <h1>Market Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h1>Market Dashboard</h1>
+        <div style={{ 
+          padding: '4px 12px', 
+          borderRadius: '20px', 
+          backgroundColor: isConnected ? '#d4edda' : '#f8d7da',
+          color: isConnected ? '#155724' : '#721c24',
+          fontSize: '0.8rem'
+        }}>
+          {isConnected ? '● Real-time Connected' : '○ Connecting...'}
+        </div>
+      </div>
 
       {/* --- Search & Control Bar --- */}
       <section className="controls" style={{ marginBottom: '30px' }}>
@@ -89,15 +84,47 @@ const DashboardPage = () => {
             placeholder="Search ticker (e.g. BTC-USD)" 
             value={inputTicker}
             onChange={(e) => setInputTicker(e.target.value)}
-            style={{ padding: '8px', width: '200px' }}
+            style={{ padding: '8px', width: '200px', borderRadius: '4px', border: '1px solid #ddd' }}
           />
-          <button type="submit" disabled={loading}>
+          <button type="submit" disabled={loading} style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
             Analyze Asset
           </button>
-          <button 
-            type="button" 
-            onClick={() => getTickerPrediction(selectedTicker)} 
-            disabled={loading}
+        </form>
+      </section>
+
+      {error && <div style={{ color: 'red', marginBottom: '20px' }}>{error}</div>}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '40px' }}>
+        {/* --- Main Display --- */}
+        <section>
+          {loading && !prices[selectedTicker] ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>Analyzing Market...</div>
+          ) : (
+            <div style={{ padding: '30px', backgroundColor: '#f8f9fa', borderRadius: '15px' }}>
+              <h2>Active Analysis: {selectedTicker}</h2>
+              <div style={{ fontSize: '3rem', fontWeight: 'bold' }}>
+                ${prices[selectedTicker]?.toFixed(2)}
+              </div>
+              <div style={{ marginTop: '20px', fontSize: '1.5rem' }}>
+                Signal: <span style={{ fontWeight: 'bold' }}>{signals[selectedTicker]}</span>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* --- Recent Signals Sidebar --- */}
+        <section>
+          <h3>Recent Signals</h3>
+          {latestPredictions.map((pred, idx) => (
+            <SignalCard key={idx} prediction={pred} />
+          ))}
+        </section>
+      </div>
+    </div>
+  );
+};
+
+export default DashboardPage;
             style={{ marginLeft: '10px' }}
           >
             Refresh

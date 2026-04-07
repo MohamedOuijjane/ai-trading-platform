@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class PredictionService:
+    # 🔧 FIX: In Docker, use service name 'ml-service'. Locally, use 'localhost'.
+    # We use getattr to safely read from Django settings with a fallback.
+    # ML_SERVICE_URL = "http://localhost:8000/api/v1/predict/"  # OLD HARDCODED
     ML_SERVICE_URL = getattr(
         settings,
         "ML_SERVICE_URL",

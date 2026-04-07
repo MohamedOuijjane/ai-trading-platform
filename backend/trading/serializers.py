@@ -1,11 +1,23 @@
 from rest_framework import serializers
-from administration.models import Trade, BotConfig, Prediction
+from administration.models import Trade, BotConfig, Prediction, Portfolio, Position
+
+class PositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Position
+        fields = ['symbol', 'quantity', 'avg_price']
+
+class PortfolioSerializer(serializers.ModelSerializer):
+    positions = PositionSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Portfolio
+        fields = ['balance', 'positions', 'created_at']
 
 class TradeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trade
-        fields = ['id', 'symbol', 'type', 'price', 'quantity', 'pnl', 'fees', 'ia_confidence', 'timestamp']
-        read_only_fields = ['id', 'pnl', 'fees', 'ia_confidence', 'timestamp']
+        fields = ['id', 'symbol', 'action', 'price', 'quantity', 'profit_loss', 'confidence', 'executed_at']
+        read_only_fields = ['id', 'profit_loss', 'confidence', 'executed_at']
 
 class BotConfigSerializer(serializers.ModelSerializer):
     class Meta:

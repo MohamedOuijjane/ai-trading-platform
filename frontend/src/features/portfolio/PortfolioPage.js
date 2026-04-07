@@ -1,47 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import portfolioApi from '../../api/portfolio.api';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchPortfolio } from './portfolioSlice';
+import PortfolioSummary from './components/PortfolioSummary';
+import PositionsTable from './components/PositionsTable';
+import PerformanceChart from './components/PerformanceChart';
 
 /**
  * PortfolioPage Component
- * Displays real-time user portfolio state from the backend.
- * Features: Automatic data fetching, P&L calculations, and history tracking.
+ * Displays real-time user portfolio state from Redux.
  */
 const PortfolioPage = () => {
-  const [portfolio, setPortfolio] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const { balance, positions, history, loading, error } = useSelector((state) => state.portfolio);
 
-  /**
-   * Fetches fresh portfolio data from the backend.
-   * Defined with useCallback to allow safe inclusion in dependency arrays if needed.
-   */
-  const fetchPortfolio = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await portfolioApi.getPortfolio();
-      // Normalize data to ensure default arrays for positions and history
-      setPortfolio({
-        balance: data.balance || 0,
-        pnl: data.pnl || 0,
-        winRate: data.winRate || 0,
-        positions: data.positions || [],
-        history: data.history || [],
-      });
-    } catch (err) {
-      console.error('[Portfolio Fetch Error]:', err);
-      setError(err.message || 'Unable to load portfolio. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch data on initial component mount
   useEffect(() => {
-    fetchPortfolio();
-  }, [fetchPortfolio]);
+    dispatch(fetchPortfolio());
+  }, [dispatch]);
 
-  if (loading) {
+  if (loading && !balance) {
     return <div className="loading-state"><h3>Updating portfolio data...</h3></div>;
   }
 
@@ -50,54 +26,31 @@ const PortfolioPage = () => {
       <div className="error-state" style={{ color: 'red', padding: '20px' }}>
         <h3>Error Loading Portfolio</h3>
         <p>{error}</p>
-        <button onClick={fetchPortfolio}>Retry Connection</button>
+        <button onClick={() => dispatch(fetchPortfolio())}>Retry Connection</button>
       </div>
     );
   }
-
-  // Handle case where portfolio is empty
-  const hasPositions = portfolio && portfolio.positions.length > 0;
 
   return (
     <div className="portfolio-container">
       <h1>Investment Portfolio</h1>
 
-      {/* --- Section 1: Financial Summary --- */}
-      <section className="summary-card" style={{ display: 'flex', gap: '30px', padding: '20px', backgroundColor: '#f4f4f4', borderRadius: '10px' }}>
-        <div>
-          <label>Available Balance</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-            ${portfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-        <div>
-          <label>Total Profit/Loss</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: portfolio.pnl >= 0 ? 'green' : 'red' }}>
-            {portfolio.pnl >= 0 ? '+' : ''}${portfolio.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
-        </div>
-        <div>
-          <label>AI Win Rate</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-            {portfolio.winRate}%
-          </div>
-        </div>
-      </section>
+      <PortfolioSummary balance={balance} history={history} />
+      
+      <div style={{ marginTop: '40px' }}>
+        <h2>Performance History</h2>
+        <PerformanceChart data={history} />
+      </div>
 
-      {/* --- Section 2: Active Positions --- */}
-      <section className="positions-list" style={{ marginTop: '40px' }}>
+      <div style={{ marginTop: '40px' }}>
         <h2>Active Asset Positions</h2>
-        {!hasPositions ? (
-          <p>No active positions. Use the Trade page to open your first position.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-                <th>Ticker</th>
-                <th>Quantity</th>
-                <th>Avg. Entry</th>
-                <th>Current Price</th>
-                <th>P&L</th>
+        <PositionsTable positions={positions} />
+      </div>
+    </div>
+  );
+};
+
+export default PortfolioPage;
               </tr>
             </thead>
             <tbody>

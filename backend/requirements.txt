@@ -6,5 +6,11 @@ psycopg2-binary
 python-dotenv
 requests
 django-jazzmin
+gunicorn
+celery
+redis
+channels
+channels-redis
 pytest
 djangorestframework-simplejwt
+daphne
