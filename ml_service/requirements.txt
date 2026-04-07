@@ -6,7 +6,8 @@ yfinance>=0.2.38
 ta>=0.10
 
 # ─── Deep Learning ─────────────────────────────────────────────────────────
-tensorflow>=2.14          # LSTM model (includes Keras)
+tensorflow>=2.13 
+#tensorflow>=2.14          # LSTM model (includes Keras)
 
 # ─── API Layer ─────────────────────────────────────────────────────────────
 fastapi>=0.110

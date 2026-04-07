@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import pickle, os
-from config import SCALER_PATH
+from core.config import settings
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -70,19 +70,33 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 # Scaling
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fit_and_save_scaler(data: np.ndarray) -> MinMaxScaler:
-    """Fit a MinMaxScaler, save to disk, and return it."""
+def fit_and_save_scaler(data: np.ndarray, ticker: str = "AAPL") -> MinMaxScaler:
+    """Fit a MinMaxScaler, save to disk per ticker, and return it."""
     scaler = MinMaxScaler()
     scaler.fit(data)
-    os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
-    with open(SCALER_PATH, "wb") as f:
+    
+    # ❌ BUG: Shared scaler path causes ticker overwriting
+    # os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+    # with open(SCALER_PATH, "wb") as f:
+    #     pickle.dump(scaler, f)
+    
+    # ✅ FIX: Ticker-specific scaler path
+    scaler_path = settings.SCALER_PATH_TEMPLATE.format(ticker=ticker.upper())
+    os.makedirs(os.path.dirname(scaler_path), exist_ok=True)
+    with open(scaler_path, "wb") as f:
         pickle.dump(scaler, f)
     return scaler
 
 
-def load_scaler() -> MinMaxScaler:
-    """Load the saved MinMaxScaler from disk."""
-    with open(SCALER_PATH, "rb") as f:
+def load_scaler(ticker: str = "AAPL") -> MinMaxScaler:
+    """Load the saved MinMaxScaler from disk per ticker."""
+    # ❌ BUG: Fixed path loads wrong scaler for most tickers
+    # with open(SCALER_PATH, "rb") as f:
+    #     return pickle.load(f)
+    
+    # ✅ FIX: Ticker-specific scaler path
+    scaler_path = settings.SCALER_PATH_TEMPLATE.format(ticker=ticker.upper())
+    with open(scaler_path, "rb") as f:
         return pickle.load(f)
 
 

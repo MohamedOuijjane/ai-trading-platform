@@ -14,7 +14,11 @@ from config import (
     DEFAULT_TICKER, SEQUENCE_LENGTH, LSTM_UNITS, DROPOUT_RATE,
     EPOCHS, BATCH_SIZE, VALIDATION_SPLIT, MODEL_PATH, MODEL_DIR, FEATURE_COLS,
 )
-from data_collector import get_clean_data
+# ❌ BUG: old pipeline (only 13 features)
+# from data_collector import get_clean_data
+
+# ✅ FIX: use full feature pipeline
+from services.data_service import get_clean_data
 from utils import fit_and_save_scaler, build_sequences
 
 
@@ -22,8 +26,8 @@ def build_model(seq_len: int, n_features: int):
     """Build and compile the LSTM model."""
     # Import here so the file can be imported without TF installed
     import tensorflow as tf
-    from keras.models import Sequential
-    from keras.layers import (
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import (
         LSTM, Dense, Dropout, BatchNormalization, Input
     )
 
@@ -57,17 +61,30 @@ def train(ticker: str = DEFAULT_TICKER,
     -------
     dict with 'val_accuracy' and 'val_loss' of the best epoch.
     """
-    from keras.callbacks import EarlyStopping, ModelCheckpoint
+    from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
     print(f"\n[train] Starting training for {ticker} …")
 
     # ── 1. Data ───────────────────────────────────────────────────────────────
     df = get_clean_data(ticker, save_csv=True)
-    feature_cols = [c for c in FEATURE_COLS if c in df.columns]
+    # ❌ BUG: silently ignores missing features
+    # feature_cols = [c for c in FEATURE_COLS if c in df.columns]
+
+    # ✅ FIX: enforce strict feature matching
+    missing = [c for c in FEATURE_COLS if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing features in dataset: {missing}")
+
+    feature_cols = FEATURE_COLS.copy()
+
     data_raw = df[feature_cols].values.astype(np.float32)
 
     # ── 2. Scale ─────────────────────────────────────────────────────────────
-    scaler   = fit_and_save_scaler(data_raw)
+    # ❌ BUG: Fixed scaler path causes overwriting per ticker
+    # scaler   = fit_and_save_scaler(data_raw)
+    
+    # ✅ FIX: Pass ticker to ensure unique scaler per model
+    scaler   = fit_and_save_scaler(data_raw, ticker=ticker)
     data_scaled = scaler.transform(data_raw)
 
     # ── 3. Sequences ─────────────────────────────────────────────────────────
@@ -85,6 +102,7 @@ def train(ticker: str = DEFAULT_TICKER,
     model.summary()
 
     os.makedirs(MODEL_DIR, exist_ok=True)
+    ticker_model_path = os.path.join(MODEL_DIR, f"{ticker}_lstm_model.keras")
 
     callbacks = [
         EarlyStopping(
@@ -92,7 +110,7 @@ def train(ticker: str = DEFAULT_TICKER,
             restore_best_weights=True, verbose=1
         ),
         ModelCheckpoint(
-            MODEL_PATH, monitor="val_accuracy",
+            ticker_model_path, monitor="val_accuracy",
             save_best_only=True, verbose=1
         ),
     ]
@@ -113,7 +131,7 @@ def train(ticker: str = DEFAULT_TICKER,
         "epochs_run":   len(history.history["loss"]),
         "val_accuracy": round(float(history.history["val_accuracy"][best_epoch]), 4),
         "val_loss":     round(float(history.history["val_loss"][best_epoch]), 4),
-        "model_path":   MODEL_PATH,
+        "model_path":   ticker_model_path,
     }
     print(f"\n[train] Done → val_accuracy={result['val_accuracy']:.4f}  "
           f"val_loss={result['val_loss']:.4f}")

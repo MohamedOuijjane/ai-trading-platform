@@ -4,5 +4,7 @@ django-cors-headers
 django-filter
 psycopg2-binary
 python-dotenv
-
+requests
+django-jazzmin
 pytest
+djangorestframework-simplejwt

@@ -9,9 +9,10 @@ urlpatterns = [
     path('', lambda request: redirect('admin/', permanent=False)),
     path('admin/', admin.site.urls),
 
-    # JWT Auth
-    path('api/token/',         TokenObtainPairView.as_view()),
-    path('api/token/refresh/', TokenRefreshView.as_view()),
+    # JWT Auth (Used for securing frontend communication)
+    # TokenObtainPairView provides the access and refresh tokens via username/password
+    path('api/token/',         TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
     # API
     path('api/', include('administration.urls')),

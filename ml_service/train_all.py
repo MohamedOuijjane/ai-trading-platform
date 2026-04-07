@@ -8,25 +8,25 @@ from config import TICKERS
 from train import train
 
 print("=" * 50)
-print("  🚀 Entraînement de tous les modèles")
+print("  Training all models")
 print("=" * 50)
 
 results = []
 for ticker in TICKERS:
-    print(f"\n▶ {ticker}...")
+    print(f"\n- {ticker}...")
     try:
         r = train(ticker)
-        results.append({"ticker": ticker, "status": "✅", "val_accuracy": r["val_accuracy"]})
+        results.append({"ticker": ticker, "status": "OK", "val_accuracy": r["val_accuracy"]})
     except Exception as e:
-        results.append({"ticker": ticker, "status": "❌", "error": str(e)})
+        results.append({"ticker": ticker, "status": "ERROR", "error": str(e)})
 
 print("\n" + "=" * 50)
-print("  📊 Résultats")
+print("  Results")
 print("=" * 50)
 for r in results:
-    if r["status"] == "✅":
-        print(f"  {r['status']} {r['ticker']:<10} → val_accuracy={r['val_accuracy']:.2%}")
+    if r["status"] == "OK":
+        print(f"  {r['status']} {r['ticker']:<10} -> val_accuracy={r['val_accuracy']:.2%}")
     else:
-        print(f"  {r['status']} {r['ticker']:<10} → Erreur: {r['error']}")
+        print(f"  {r['status']} {r['ticker']:<10} -> Error: {r['error']}")
 print("=" * 50)
-print("\n✅ Terminé ! Lance maintenant : uvicorn api:app --reload --port 8000")
+print("\nDone! Now run: uvicorn main:app --reload --port 8000")

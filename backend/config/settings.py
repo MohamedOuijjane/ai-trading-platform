@@ -77,13 +77,23 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # ======================
 # DATABASE (Docker PostgreSQL)
 # ======================
+#DATABASES = {
+#    'default': {
+#        'ENGINE': 'django.db.backends.postgresql',
+#        'NAME': os.getenv('POSTGRES_DB'),
+#        'USER': os.getenv('POSTGRES_USER'),
+#        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+#        'HOST': 'db',
+#        'PORT': 5432,
+#    }
+#}
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB'),
-        'USER': os.getenv('POSTGRES_USER'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': 'db',
+        'NAME': 'trading_db',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',  
         'PORT': 5432,
     }
 }
@@ -91,12 +101,14 @@ DATABASES = {
 # ======================
 # DRF
 # ======================
+# JWT is used for secure, stateless authentication between frontend and backend.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAdminUser',
+        # 'rest_framework.permissions.IsAdminUser', # OLD: Required admin status
+        'rest_framework.permissions.IsAuthenticated', # NEW: Any authenticated user can access
     ),
     'DEFAULT_FILTER_BACKENDS': (
         'django_filters.rest_framework.DjangoFilterBackend',

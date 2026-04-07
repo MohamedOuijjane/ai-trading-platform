@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from administration.models import BotConfig
 from .serializers import TradeSerializer, BotConfigSerializer, PredictionSerializer
@@ -39,10 +39,21 @@ class TradeView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class PredictionProxyView(APIView):
+    # JWT authentication is now required for production safety.
+    # AllowAny was previously used only for initial integration testing.
+    # To test with a token, obtain one from /api/token/ and use:
+    # Authorization: Bearer <access_token>
+    # permission_classes = [AllowAny]  # OLD: TEMPORARY (testing only)
     permission_classes = [IsAuthenticated]
 
     def get(self, request, ticker):
         """Proxy prediction from ML service."""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info("PredictionProxyView triggered")
+        # Debugging authentication status
+        logger.info(f"User: {request.user}, Authenticated: {request.user.is_authenticated}")
+        
         prediction = PredictionService.get_prediction(ticker, request.user)
         return Response(prediction)
 

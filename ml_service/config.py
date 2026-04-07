@@ -38,13 +38,24 @@ SEQUENCE_LENGTH = 60          # look-back window fed into LSTM
 # ---------------------------------------------------------------------------
 # Feature columns used by the model
 # ---------------------------------------------------------------------------
+#FEATURE_COLS = [
+#    "Open", "High", "Low", "Close", "Volume",
+#    "RSI", "MACD", "MACD_Signal",
+#    "BB_Upper", "BB_Lower", "BB_Middle",
+#    "EMA_20", "EMA_50",
+#]
 FEATURE_COLS = [
     "Open", "High", "Low", "Close", "Volume",
     "RSI", "MACD", "MACD_Signal",
     "BB_Upper", "BB_Lower", "BB_Middle",
     "EMA_20", "EMA_50",
+    "SMA_10", "SMA_20", "SMA_50",
+    "EMA_12", "EMA_26", "EMA_Diff",
+    "ROC", "Stoch_K", "Stoch_D",
+    "ATR", "Volatility_20",
+    "Daily_Return", "Log_Return",
+    "Volume_SMA_20", "Volume_Change_Pct",
 ]
-
 # ---------------------------------------------------------------------------
 # LSTM hyper-parameters
 # ---------------------------------------------------------------------------

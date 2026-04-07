@@ -42,7 +42,8 @@ class ModelManager:
                 raise FileNotFoundError(f"Model for {ticker} not found.")
 
             try:
-                from keras.models import load_model
+                from tensorflow.keras.models import load_model
+                #from keras.models import load_model
                 logger.info(f"Loading model for {ticker} from {final_path}")
                 model = load_model(final_path)
                 self._models[ticker] = model
@@ -63,19 +64,20 @@ class ModelManager:
             if ticker in self._scalers:
                 return self._scalers[ticker]
 
-            scaler_path = self._get_scaler_path(ticker)
-            generic_scaler_path = os.path.join(settings.MODEL_DIR, "scaler.pkl")
-            final_path = scaler_path if os.path.exists(scaler_path) else generic_scaler_path
+            # 🔧 FIX 1 — Enforce scaler existence in model_manager.py
+            scaler_path = settings.SCALER_PATH_TEMPLATE.format(ticker=ticker.upper())
             
-            if not os.path.exists(final_path):
-                logger.error(f"Scaler for {ticker} not found at {scaler_path} or {generic_scaler_path}")
-                raise FileNotFoundError(f"Scaler for {ticker} not found.")
+            if not os.path.exists(scaler_path):
+                logger.error(f"Scaler for {ticker} not found at {scaler_path}")
+                raise FileNotFoundError(f"Scaler not found for {ticker}: {scaler_path}")
 
+            # 🔧 FIX 7 — Ensure scaler and model alignment
+            from utils import load_scaler
             try:
-                logger.info(f"Loading scaler for {ticker} from {final_path}")
-                with open(final_path, "rb") as f:
-                    scaler = pickle.load(f)
+                logger.info(f"Loading scaler for {ticker} from {scaler_path}")
+                scaler = load_scaler(ticker)
                 self._scalers[ticker] = scaler
+                print(f"[DEBUG] Loaded model + scaler for {ticker}")
                 return scaler
             except Exception as e:
                 logger.error(f"Failed to load scaler for {ticker}: {e}", exc_info=True)
