@@ -66,6 +66,60 @@ N --> C
 - Redis enables asynchronous processing via Celery  
 - WebSockets ensure real-time UI updates without polling 
 
+## ⚙️ How It Works
+
+```mermaid
+sequenceDiagram
+
+participant User
+participant Frontend as React Frontend
+participant Backend as Django Backend
+participant Auth as JWT Auth
+participant Celery as Celery Worker
+participant Redis as Redis Broker
+participant ML as FastAPI ML Service
+participant Model as LSTM Model
+participant DB as PostgreSQL
+participant WS as WebSocket Server
+
+%% Step 1 - User interaction
+User->>Frontend: Request prediction (ticker)
+
+%% Step 2 - API request
+Frontend->>Backend: HTTP Request /predict
+
+%% Step 3 - Authentication
+Backend->>Auth: Validate JWT
+Auth-->>Backend: Valid user
+
+%% Step 4 - Async task
+Backend->>Celery: Send prediction task
+Celery->>Redis: Queue task
+
+%% Step 5 - ML processing
+Celery->>ML: Call /predict endpoint
+ML->>Model: Load model & run inference
+ML->>ML: Fetch market data (yfinance)
+ML-->>Celery: Return prediction (BUY/SELL)
+
+%% Step 6 - Store result
+Celery->>Backend: Send result
+Backend->>DB: Save prediction
+
+%% Step 7 - Realtime update
+Backend->>WS: Broadcast prediction
+WS-->>Frontend: Push update
+
+%% Step 8 - UI update
+Frontend-->>User: Display result
+```
+### 📌 Workflow Highlights
+
+- Requests are processed asynchronously using Celery to avoid blocking the API  
+- ML inference is isolated in a dedicated FastAPI service for scalability  
+- Predictions are broadcast in real-time using WebSockets  
+- PostgreSQL ensures persistence and historical tracking of predictions 
+
 ### 🔹 Core Components
 
 | Layer        | Technology                     | Responsibility                          |
