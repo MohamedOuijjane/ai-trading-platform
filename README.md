@@ -37,64 +37,27 @@ The system follows a **scalable microservices architecture**:
 ```mermaid
 flowchart LR
 
-%% =========================
-%% Client Layer
-%% =========================
 A[User Browser] --> B[React Frontend]
 
-%% =========================
-%% API Layer
-%% =========================
-B -->|HTTP / REST| C[Django Backend API]
+B -->|REST API| C[Django Backend]
 
-%% =========================
-%% Auth & Logic
-%% =========================
-C --> D[JWT Authentication]
-C --> E[Business Logic Layer]
+C -->|Auth| D[JWT System]
+C -->|Business Logic| E[Core Services]
 
-%% =========================
-%% Async Processing
-%% =========================
-E -->|Async Task| F[Celery Worker]
-F -->|Message Broker| G[Redis]
+E -->|Async Tasks| F[Celery Worker]
+F --> G[Redis Broker]
 
-%% =========================
-%% ML Service
-%% =========================
-F -->|REST API| H[FastAPI ML Service]
-H --> I[ML Models (LSTM)]
-H --> J[Market Data (yfinance)]
+F -->|Prediction Request| H[FastAPI ML Service]
+H --> I[LSTM Model]
+H --> J[Market Data API]
 
-%% =========================
-%% Database Layer
-%% =========================
 C --> K[(PostgreSQL Database)]
 
-%% =========================
-%% Realtime Layer
-%% =========================
-C -->|WebSockets| L[Django Channels]
+C -->|WebSockets| L[Realtime Server]
 L --> B
 
-%% =========================
-%% Gateway
-%% =========================
-N[Nginx Reverse Proxy] --> B
+N[Nginx] --> B
 N --> C
-
-%% =========================
-%% Styling
-%% =========================
-classDef frontend fill:#f9f,stroke:#333,stroke-width:1px;
-classDef backend fill:#bbf,stroke:#333,stroke-width:1px;
-classDef ml fill:#bfb,stroke:#333,stroke-width:1px;
-classDef infra fill:#fbb,stroke:#333,stroke-width:1px;
-
-class B frontend;
-class C,E,D backend;
-class H,I,J ml;
-class F,G,K,L,N infra;
 ```
 ### 📌 Notes
 
