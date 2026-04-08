@@ -143,15 +143,6 @@ class AnalyticsPerformanceView(APIView):
             "signal_distribution": signal_distribution,
             "pnl_history": pnl_history
         })
-            avg_confidence=Avg('confidence')
-        )
-        
-        return Response({
-            "total_predictions": total,
-            "correct_predictions": correct,
-            "accuracy_pct": round(accuracy, 2),
-            "signal_breakdown": signals
-        })
 
 class BotConfigView(APIView):
     permission_classes = [IsAuthenticated]

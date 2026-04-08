@@ -139,6 +139,14 @@ REST_FRAMEWORK = {
 CORS_ALLOW_ALL_ORIGINS = True
 
 # ======================
+# INTERNATIONALIZATION
+# ======================
+LANGUAGE_CODE = 'fr-fr'
+TIME_ZONE = 'Africa/Casablanca'
+USE_I18N = True
+USE_TZ = True
+
+# ======================
 # CELERY
 # ======================
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
@@ -156,7 +164,6 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'json': {
-            '()': 'django.utils.log.AdminEmailHandler' if not DEBUG else 'logging.Formatter',
             'format': '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "module": "%(module)s", "message": "%(message)s"}',
         },
         'verbose': {
@@ -187,10 +194,6 @@ LOGGING = {
         },
     },
 }
-LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = 'Africa/Casablanca'
-USE_I18N = True
-USE_TZ = True
 
 # ======================
 # STATIC & MEDIA
