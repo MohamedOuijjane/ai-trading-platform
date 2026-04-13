@@ -1,0 +1,107 @@
+================================================================================
+🚀 AI TRADING PLATFORM - FULL PROJECT GUIDE & AUDIT
+================================================================================
+
+1. PROJECT OVERVIEW
+-------------------
+An AI-powered trading platform with real-time data, prediction engine (LSTM),
+and portfolio management. It follows a microservices architecture.
+
+2. TECH STACK & ARCHITECTURE
+----------------------------
+- FRONTEND: React (Port 3000)
+- BACKEND: Django + DRF (Port 8000)
+- ML SERVICE: FastAPI + TensorFlow/LSTM (Port 8001)
+- DATABASE: PostgreSQL (Port 5432)
+- BROKER/CACHE: Redis (Port 6379)
+- TASK QUEUE: Celery
+
+3. SERVICE DETAILS & PORTS
+--------------------------
+| Service     | Local Port | Internal Port | Technology   |
+|-------------|------------|---------------|--------------|
+| Frontend    | 3000       | 3000          | React        |
+| Backend     | 8000       | 8000          | Django       |
+| ML Service  | 8001       | 8000          | FastAPI      |
+| Database    | 5432       | 5432          | PostgreSQL   |
+| Redis       | 6379       | 6379          | Redis        |
+
+4. DATABASE INFORMATION
+-----------------------
+- Engine: PostgreSQL 15
+- Database Name: trading_db
+- User: postgres
+- Key Models:
+    * User: Django Auth system.
+    * Prediction: Stores symbol, signal (BUY/SELL/HOLD), confidence, and price.
+    * Trade: Stores symbol, action, price, quantity, confidence, and PnL.
+    * BotConfig: User settings for automated trading.
+    * StockPrice: Market history (OHLCV).
+
+5. ENVIRONMENT VARIABLES (.env)
+-------------------------------
+The file .env at the root contains:
+- DEBUG: True
+- SECRET_KEY: Security key for Django.
+- POSTGRES_DB: trading_db
+- POSTGRES_USER: postgres
+- POSTGRES_PASSWORD: postgres
+- REDIS_URL: redis://localhost:6379
+- ML_SERVICE_URL: http://localhost:8001
+
+6. FIXES APPLIED (AUDIT LOG)
+----------------------------
+✅ BUG FIX: Corrected field name mismatches in PredictionService and TradeService.
+✅ BUG FIX: Fixed Docker Compose port mapping for ML Service (5000:8000 -> 8001:8000).
+✅ BUG FIX: Fixed Celery start command (core -> config).
+✅ ENHANCEMENT: Created root .env file with real configurations.
+✅ ENHANCEMENT: Updated settings.py to use localhost for DB when running locally.
+✅ ENHANCEMENT: Implemented Adapter Layer in PredictionService to normalize ML data.
+✅ ENHANCEMENT: Added robust logging (Latency, Payload, Network errors) for ML calls.
+✅ ENHANCEMENT: Added 'valid' flag and safe fallback logic to prevent trades at $0.
+✅ TEST FIX: Temporarily disabled authentication for PredictionProxyView for debugging.
+
+7. HOW TO RUN MANUALLY (LOCAL)
+------------------------------
+A) PREREQUISITES:
+   - Python 3.10+
+   - Node.js
+   - PostgreSQL running on port 5432.
+
+B) BACKEND:
+   1. cd backend
+   2. python -m venv venv
+   3. venv\Scripts\activate
+   4. pip install -r requirements.txt
+   5. python manage.py migrate
+   6. python manage.py runserver
+
+C) ML SERVICE:
+   1. cd ml_service
+   2. python -m venv venv
+   3. venv\Scripts\activate
+   4. pip install -r requirements.txt
+   5. uvicorn main:app --port 8001
+
+D) FRONTEND:
+   1. cd frontend
+   2. npm install
+   3. npm start
+
+8. HOW TO RUN WITH DOCKER
+-------------------------
+1. make run (or: docker-compose up --build)
+2. make migrate (apply DB changes)
+3. make createsuperuser (to access admin)
+
+9. INTEGRATION FLOW (BACKEND <-> ML)
+------------------------------------
+1. Request: Backend (8000) calls ML Service (8001) via GET /api/v1/predict/{ticker}.
+2. Processing: ML Service fetches yfinance data, runs LSTM model.
+3. Response: Returns JSON {ticker, signal, confidence, price}.
+4. Persistence: Backend saves this into 'Prediction' table for audit.
+5. Action: Backend returns result to Frontend or uses it to execute a Trade.
+
+================================================================================
+GUIDE GENERATED ON: 2026-04-13
+================================================================================

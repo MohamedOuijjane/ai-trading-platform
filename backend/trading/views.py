@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 from administration.models import BotConfig
 from .serializers import TradeSerializer, BotConfigSerializer, PredictionSerializer
@@ -39,7 +39,7 @@ class TradeView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class PredictionProxyView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, ticker):
         """Proxy prediction from ML service."""

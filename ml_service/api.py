@@ -1,14 +1,4 @@
-"""
-api.py – FastAPI REST service for the ML trading model.
 
-Start with:
-    uvicorn api:app --reload --port 8000
-
-Endpoints:
-    GET  /health            – service liveness check
-    GET  /predict/{ticker}  – get BUY/SELL/HOLD signal
-    POST /train             – (re)train model for a given ticker
-"""
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -134,4 +124,4 @@ def train_model(body: TrainRequest, background_tasks: BackgroundTasks):
 # ─────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api:app", host="0.0.0.0", port=8001, reload=True)

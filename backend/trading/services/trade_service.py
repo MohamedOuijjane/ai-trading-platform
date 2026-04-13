@@ -16,10 +16,11 @@ class TradeService:
 
         # 1. Get current price from ML service proxy
         prediction_data = PredictionService.get_prediction(ticker)
-        price = Decimal(str(prediction_data['price']))
         
-        if price <= 0:
-            raise ValidationError({"detail": "Unable to get current market price."})
+        if not prediction_data.get('valid') or prediction_data['price'] <= 0:
+            raise ValidationError({"detail": f"Unable to get valid market price: {prediction_data.get('error', 'Unknown error')}"})
+
+        price = Decimal(str(prediction_data['price']))
 
         # 2. Financial Validations
         config, _ = BotConfig.objects.get_or_create(user=user)
@@ -45,12 +46,11 @@ class TradeService:
         trade = Trade.objects.create(
             user=user,
             symbol=ticker,
-            type=action,
+            action=action,
             price=price,
             quantity=quantity,
-            fees=fee,
-            pnl=pnl,
-            ia_confidence=prediction_data.get('confidence', 0.0)
+            profit_loss=pnl,
+            confidence=prediction_data.get('confidence', 0.0)
         )
 
         return trade
@@ -59,8 +59,8 @@ class TradeService:
     def get_current_position(user, ticker):
         """Calculate current holdings for a ticker."""
         trades = Trade.objects.filter(user=user, symbol=ticker)
-        buys = sum(t.quantity for t in trades if t.type == 'BUY')
-        sells = sum(t.quantity for t in trades if t.type == 'SELL')
+        buys = sum(t.quantity for t in trades if t.action == 'BUY')
+        sells = sum(t.quantity for t in trades if t.action == 'SELL')
         return buys - sells
 
     @staticmethod
@@ -69,7 +69,7 @@ class TradeService:
         Simplified FIFO PnL calculation.
         Computes PnL based on the weighted average of previous BUYs.
         """
-        buy_trades = Trade.objects.filter(user=user, symbol=ticker, type='BUY')
+        buy_trades = Trade.objects.filter(user=user, symbol=ticker, action='BUY')
         total_buy_qty = sum(t.quantity for t in buy_trades)
         
         if total_buy_qty == 0:
