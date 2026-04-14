@@ -9,9 +9,9 @@ const authApi = {
    * @param {string} email
    * @param {string} password
    */
-  login: (email, password) => {
-    return apiClient("/api/login", {
-      body: { email, password },
+  login: (username, password) => {
+    return apiClient("/api/token/", {
+      body: { username, password },
       method: "POST",
     });
   },

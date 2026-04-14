@@ -93,3 +93,26 @@ class BotConfig(models.Model):
 
     def __str__(self):
         return f"Config de {self.user.username}"
+
+
+class SystemSettings(models.Model):
+    RISK_CHOICES = [
+        ('low', 'Faible'),
+        ('medium', 'Moyen'),
+        ('high', 'Élevé'),
+    ]
+
+    trading_enabled   = models.BooleanField(default=True, verbose_name="Trading activé")
+    max_trade_amount = models.FloatField(default=1000.0, verbose_name="Montant max / trade")
+    risk_level       = models.CharField(max_length=10, choices=RISK_CHOICES, default='medium',
+                                        verbose_name="Niveau de risque")
+    auto_trade       = models.BooleanField(default=False, verbose_name="Trading automatique")
+    min_confidence   = models.FloatField(default=0.75, verbose_name="Confiance minimum IA")
+    updated_at       = models.DateTimeField(auto_now=True, verbose_name="Dernière modification")
+
+    class Meta:
+        verbose_name        = "Paramètres Système"
+        verbose_name_plural = "Paramètres Système"
+
+    def __str__(self):
+        return f"System Settings (risk: {self.risk_level})"

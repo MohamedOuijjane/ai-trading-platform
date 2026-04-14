@@ -7,7 +7,7 @@ import useAuth from "../../hooks/useAuth";
  * Login Page - Handles user authentication and token storage
  */
 const LoginPage = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,8 +21,8 @@ const LoginPage = () => {
     setError("");
 
     try {
-      const data = await authApi.login(email, password);
-      login(data.access_token);
+      const data = await authApi.login(username, password);
+      login(data.access);
       navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Login failed. Please check your credentials.");
@@ -38,10 +38,10 @@ const LoginPage = () => {
       {error && <p style={{ color: "red" }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
           required
         />
         <input

@@ -1,12 +1,19 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import BotConfig
+from .models import BotConfig, SystemSettings
 
 class BotConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = BotConfig
         fields = ['is_active', 'min_confidence', 'max_trade_amount',
                   'stop_loss_pct', 'paper_trading']
+
+class SystemSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SystemSettings
+        fields = ['id', 'trading_enabled', 'max_trade_amount', 'risk_level',
+                  'auto_trade', 'min_confidence', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
 
 class UserSerializer(serializers.ModelSerializer):
     bot_config = serializers.SerializerMethodField()

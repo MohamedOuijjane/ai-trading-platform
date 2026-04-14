@@ -9,23 +9,21 @@ class PortfolioService:
         """
         Main engine for calculating user portfolio metrics.
         """
-        trades = Trade.objects.filter(user=user).order_by('timestamp')
+        trades = Trade.objects.filter(user=user).order_by('executed_at')
         config, _ = BotConfig.objects.get_or_create(user=user)
         
         # 1. Calculate Balance
         initial_balance = config.max_trade_amount if config.max_trade_amount > 0 else Decimal('10000.0')
         
         # Correctly calculate total value using list comprehension or F expressions
-        # Sum('price' * 'quantity') is not valid in standard Django ORM aggregate
-        buy_trades = trades.filter(type='BUY')
-        sell_trades = trades.filter(type='SELL')
+        buy_trades = trades.filter(action='BUY')
+        sell_trades = trades.filter(action='SELL')
         
         total_buys = sum(t.price * t.quantity for t in buy_trades)
         total_sells = sum(t.price * t.quantity for t in sell_trades)
-        total_fees = trades.aggregate(total=Sum('fees'))['total'] or Decimal('0.0')
         
-        # Simplified balance: Initial + Sells - Buys - Fees
-        current_balance = initial_balance - total_buys + total_sells - total_fees
+        # Simplified balance: Initial + Sells - Buys
+        current_balance = initial_balance - total_buys + total_sells
 
         # 2. Calculate Positions
         symbols = trades.values_list('symbol', flat=True).distinct()
@@ -33,14 +31,14 @@ class PortfolioService:
         
         for symbol in symbols:
             symbol_trades = trades.filter(symbol=symbol)
-            qty_buy = symbol_trades.filter(type='BUY').aggregate(total=Sum('quantity'))['total'] or Decimal('0.0')
-            qty_sell = symbol_trades.filter(type='SELL').aggregate(total=Sum('quantity'))['total'] or Decimal('0.0')
+            qty_buy = symbol_trades.filter(action='BUY').aggregate(total=Sum('quantity'))['total'] or Decimal('0.0')
+            qty_sell = symbol_trades.filter(action='SELL').aggregate(total=Sum('quantity'))['total'] or Decimal('0.0')
             
             current_qty = qty_buy - qty_sell
             
             if current_qty > 0:
                 # Weighted Average Entry Price
-                buy_val = sum(t.price * t.quantity for t in symbol_trades.filter(type='BUY'))
+                buy_val = sum(t.price * t.quantity for t in symbol_trades.filter(action='BUY'))
                 avg_entry = buy_val / qty_buy
                 
                 # Current Price from Proxy
@@ -50,21 +48,19 @@ class PortfolioService:
                 unrealized_pnl = (current_price - avg_entry) * current_qty
                 
                 positions.append({
-                    "symbol": symbol,
+                    "ticker": symbol,
                     "quantity": float(current_qty),
-                    "avg_price": float(avg_entry),
-                    "current_price": float(current_price),
+                    "entry": float(avg_entry),
+                    "current": float(current_price),
                     "pnl": float(unrealized_pnl)
                 })
 
         # 3. Win Rate & Stats
-        total_trade_count = trades.count()
-        sell_trades = trades.filter(type='SELL')
-        winning_trades = sum(1 for t in sell_trades if t.pnl > 0)
+        winning_trades = sum(1 for t in sell_trades if t.profit_loss and t.profit_loss > 0)
         
         win_rate = (winning_trades / sell_trades.count() * 100) if sell_trades.count() > 0 else 0.0
         
-        realized_pnl = trades.aggregate(total=Sum('pnl'))['total'] or Decimal('0.0')
+        realized_pnl = trades.aggregate(total=Sum('profit_loss'))['total'] or Decimal('0.0')
 
         return {
             "balance": float(current_balance),
@@ -75,10 +71,10 @@ class PortfolioService:
                 {
                     "id": t.id,
                     "ticker": t.symbol,
-                    "action": t.type,
+                    "action": t.action,
                     "price": float(t.price),
                     "quantity": float(t.quantity),
-                    "date": t.timestamp.isoformat()
-                } for t in trades.order_by('-timestamp')[:10]
+                    "date": t.executed_at.isoformat()
+                } for t in trades.order_by('-executed_at')[:10]
             ]
         }

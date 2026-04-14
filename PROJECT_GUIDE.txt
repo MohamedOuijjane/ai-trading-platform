@@ -1,107 +1,378 @@
 ================================================================================
-🚀 AI TRADING PLATFORM - FULL PROJECT GUIDE & AUDIT
+🚀 AI TRADING PLATFORM - COMPLETE PROJECT GUIDE
+================================================================================
+LAST UPDATED: 2026-04-14
+SESSION: Full Admin Dashboard restoration, data flow fixes, system audit
 ================================================================================
 
 1. PROJECT OVERVIEW
 -------------------
-An AI-powered trading platform with real-time data, prediction engine (LSTM),
-and portfolio management. It follows a microservices architecture.
+An AI-powered trading platform with a React Admin Dashboard, Django REST API,
+FastAPI ML inference engine (LSTM), and PostgreSQL database.
 
-2. TECH STACK & ARCHITECTURE
-----------------------------
-- FRONTEND: React (Port 3000)
-- BACKEND: Django + DRF (Port 8000)
-- ML SERVICE: FastAPI + TensorFlow/LSTM (Port 8001)
-- DATABASE: PostgreSQL (Port 5432)
-- BROKER/CACHE: Redis (Port 6379)
-- TASK QUEUE: Celery
+Architecture: Microservices (Frontend + Backend + ML Service + DB)
 
-3. SERVICE DETAILS & PORTS
---------------------------
-| Service     | Local Port | Internal Port | Technology   |
-|-------------|------------|---------------|--------------|
-| Frontend    | 3000       | 3000          | React        |
-| Backend     | 8000       | 8000          | Django       |
-| ML Service  | 8001       | 8000          | FastAPI      |
-| Database    | 5432       | 5432          | PostgreSQL   |
-| Redis       | 6379       | 6379          | Redis        |
-
-4. DATABASE INFORMATION
------------------------
-- Engine: PostgreSQL 15
-- Database Name: trading_db
-- User: postgres
-- Key Models:
-    * User: Django Auth system.
-    * Prediction: Stores symbol, signal (BUY/SELL/HOLD), confidence, and price.
-    * Trade: Stores symbol, action, price, quantity, confidence, and PnL.
-    * BotConfig: User settings for automated trading.
-    * StockPrice: Market history (OHLCV).
-
-5. ENVIRONMENT VARIABLES (.env)
--------------------------------
-The file .env at the root contains:
-- DEBUG: True
-- SECRET_KEY: Security key for Django.
-- POSTGRES_DB: trading_db
-- POSTGRES_USER: postgres
-- POSTGRES_PASSWORD: postgres
-- REDIS_URL: redis://localhost:6379
-- ML_SERVICE_URL: http://localhost:8001
-
-6. FIXES APPLIED (AUDIT LOG)
-----------------------------
-✅ BUG FIX: Corrected field name mismatches in PredictionService and TradeService.
-✅ BUG FIX: Fixed Docker Compose port mapping for ML Service (5000:8000 -> 8001:8000).
-✅ BUG FIX: Fixed Celery start command (core -> config).
-✅ ENHANCEMENT: Created root .env file with real configurations.
-✅ ENHANCEMENT: Updated settings.py to use localhost for DB when running locally.
-✅ ENHANCEMENT: Implemented Adapter Layer in PredictionService to normalize ML data.
-✅ ENHANCEMENT: Added robust logging (Latency, Payload, Network errors) for ML calls.
-✅ ENHANCEMENT: Added 'valid' flag and safe fallback logic to prevent trades at $0.
-✅ TEST FIX: Temporarily disabled authentication for PredictionProxyView for debugging.
-
-7. HOW TO RUN MANUALLY (LOCAL)
-------------------------------
-A) PREREQUISITES:
-   - Python 3.10+
-   - Node.js
-   - PostgreSQL running on port 5432.
-
-B) BACKEND:
-   1. cd backend
-   2. python -m venv venv
-   3. venv\Scripts\activate
-   4. pip install -r requirements.txt
-   5. python manage.py migrate
-   6. python manage.py runserver
-
-C) ML SERVICE:
-   1. cd ml_service
-   2. python -m venv venv
-   3. venv\Scripts\activate
-   4. pip install -r requirements.txt
-   5. uvicorn main:app --port 8001
-
-D) FRONTEND:
-   1. cd frontend
-   2. npm install
-   3. npm start
-
-8. HOW TO RUN WITH DOCKER
--------------------------
-1. make run (or: docker-compose up --build)
-2. make migrate (apply DB changes)
-3. make createsuperuser (to access admin)
-
-9. INTEGRATION FLOW (BACKEND <-> ML)
-------------------------------------
-1. Request: Backend (8000) calls ML Service (8001) via GET /api/v1/predict/{ticker}.
-2. Processing: ML Service fetches yfinance data, runs LSTM model.
-3. Response: Returns JSON {ticker, signal, confidence, price}.
-4. Persistence: Backend saves this into 'Prediction' table for audit.
-5. Action: Backend returns result to Frontend or uses it to execute a Trade.
+Current State (as of 2026-04-14):
+- ✅ Admin Dashboard fully functional with real data
+- ✅ All 10 sidebar pages wired and rendering
+- ✅ Backend APIs returning real data (trades, predictions, stats)
+- ⚠️  Auto-trade system defined but not wired (flag exists, no UI)
+- ⚠️  Logs pages (Celery, Audit) are mocked/static data
+- ⚠️  ML Models page shows static data (not scanning .keras files)
 
 ================================================================================
-GUIDE GENERATED ON: 2026-04-13
+2. TECH STACK & ARCHITECTURE
+================================================================================
+- FRONTEND:     React 18 + Recharts (Port 3000)  — Admin Dashboard
+- BACKEND:      Django 4 + DRF (Port 8000)       — REST API
+- ML SERVICE:   FastAPI + TensorFlow/Keras (Port 8001) — LSTM inference
+- DATABASE:     PostgreSQL 15 (Port 5432)
+- BROKER/CACHE: Redis (Port 6379)
+- TASK QUEUE:    Celery
+
+SERVICE PORTS:
++--------------+------------+---------------+--------------+
+| Service      | Local Port | Internal Port | Technology   |
++--------------+------------+---------------+--------------+
+| Frontend     | 3000       | 3000          | React        |
+| Backend      | 8000       | 8000          | Django       |
+| ML Service   | 8001       | 8000          | FastAPI      |
+| Database     | 5432       | 5432          | PostgreSQL   |
+| Redis        | 6379       | 6379          | Redis        |
++--------------+------------+---------------+--------------+
+
+================================================================================
+3. FRONTEND FILE STRUCTURE (src/pages/)
+================================================================================
+All pages use: useState for local state, inline <style> tags for CSS,
+and fetch() with JWT Bearer auth.
+
++------------------------+--------------------------------+------------------+
+| File                   | Route Key      | Purpose          | Data Source     |
++------------------------+----------------+------------------+-----------------+
+| Dashboard.js           | dashboard      | Stats+Charts     | /api/stats/     |
+| Login.js               | —             | JWT Auth         | /api/token/     |
+| Users.js               | users         | User CRUD        | /api/users/     |
+| Trades.js              | trades        | Trade History    | /api/v1/trades/ |
+| MarketPrices.js         | prices        | Live Market Data | /api/v1/market/ |
+| Portfolios.js          | portfolios    | Holdings+Pie     | /api/v1/portfolio/
+| Predictions.js         | predictions   | AI Signals       | /api/v1/predict/|
+| Charts.js              | (inside      | Bar+Pie Charts   | /api/v1/trades/ |
+|                        |  Dashboard)   |                  | /api/v1/predict/|
+| MLModels.js            | ml-models    | Model Health     | /api/v1/ml/models/
+| CeleryLogs.js          | celery-logs  | Task Monitor     | /api/v1/logs/   |
+| AuditLogs.js           | audit-logs   | Security Logs    | /api/v1/logs/   |
+| Settings.js            | settings     | System Config    | /api/v1/settings/|
+| api.js                 | —            | Centralized      | (not widely     |
+|                        |              | fetch helpers    | used)           |
++------------------------+----------------+------------------+-----------------+
+
+Components:
++------------------------+-----------------------------------------+
+| Sidebar.js            | Navigation component (shared layout)     |
++------------------------+-----------------------------------------+
+
+Legacy/Dead Files:
+- AllPages.js    — Old placeholder components (unused)
+- Dashboard.jsx  — Duplicate of Dashboard.js (unused)
+
+================================================================================
+4. BACKEND FILE STRUCTURE
+================================================================================
+DJANGO APPS:
+
+config/          — Django project settings
+  settings.py    — JWT/SimpleJWT, PostgreSQL, installed apps
+  urls.py        — Root routing: admin/, api/
+
+trading/         — Core trading business logic
+  urls.py        — All /api/v1/* endpoints
+  views.py       — PortfolioView, TradeListView, MarketPricesView, etc.
+  serializers.py  — TradeSerializer, BotConfigSerializer
+  services/
+    prediction_service.py  — ML proxy + adapter + fallback
+    portfolio_service.py   — Trade aggregation per user
+    trade_service.py       — execute_trade() with FIFO PnL (NOT called from UI)
+
+administration/  — Admin and system management
+  models.py      — Trade, Prediction, BotConfig, SystemSettings
+  views.py       — StatsView, SettingsView, MLModelsView, LogsViews
+  serializers.py — User serializers, SystemSettingsSerializer
+  urls.py        — Administration URL routes
+
+ML_SERVICE/      — FastAPI LSTM inference engine
+  main.py        — /api/v1/predict/{ticker} endpoint
+
+================================================================================
+5. DATABASE MODELS (administration/models.py)
+================================================================================
++----------------+--------------------------------------------------+----------------+
+| Model          | Fields                                           | Link           |
++----------------+--------------------------------------------------+----------------+
+| Trade          | user(FK), symbol, action, price, quantity,       | user FK       |
+|                | profit_loss, confidence, executed_at             |               |
+| Prediction     | symbol, signal, confidence, predicted_price,      | —             |
+|                | actual_price, created_at                         |               |
+| BotConfig      | user(1:1), is_active, min_confidence,           | user FK       |
+|                | max_trade_amount, stop_loss_pct, paper_trading   |               |
+| SystemSettings | trading_enabled, max_trade_amount, risk_level,     | Singleton PK=1 |
+|                | auto_trade, min_confidence, updated_at           |               |
++----------------+--------------------------------------------------+----------------+
+
+NOTE: There is NO Portfolio model. Portfolio is computed dynamically by
+PortfolioService.get_user_portfolio(user), which aggregates Trade records.
+
+================================================================================
+6. API ENDPOINTS (Full List)
+================================================================================
+AUTH:
+  POST /api/token/              — Obtain JWT (username/password)
+  POST /api/token/refresh/       — Refresh JWT access token
+
+TRADING (trading/urls.py):
+  GET  /api/v1/trades/           — List trades (admin=ALL, user=OWN)
+  POST /api/v1/trade/            — Execute a trade (via TradeService)
+  GET  /api/v1/portfolio/       — User portfolio (aggregated trades)
+  GET  /api/v1/predictions/     — List all predictions
+  POST /api/v1/predict/{ticker}/ — Request ML prediction (proxied to ML svc)
+  GET  /api/v1/market/prices/   — Live market prices (with ML fallback)
+  GET  /api/v1/health/           — Health check
+  GET  /api/v1/my-config/       — Current user's BotConfig
+  GET  /api/v1/settings/         — SystemSettings (GET/PATCH)
+
+ADMINISTRATION (administration/urls.py):
+  GET  /api/users/               — List all users
+  POST /api/users/               — Create user
+  GET  /api/users/{id}/          — User detail
+  DELETE /api/users/{id}/        — Delete user
+  POST /api/users/{id}/toggle/   — Toggle active status
+  GET  /api/stats/               — Dashboard aggregation stats
+  GET  /api/v1/ml/models/        — ML model status (MOCKED)
+  GET  /api/v1/logs/celery/      — Celery task logs (MOCKED)
+  GET  /api/v1/logs/audit/       — Audit logs (MOCKED)
+  GET|PATCH /api/v1/settings/    — System settings (admin only)
+
+================================================================================
+7. KEY SERVICE FLOWS
+================================================================================
+
+A) ML PREDICTION FLOW:
+User → GET /api/v1/predict/{TICKER}/
+  → PredictionProxyView (Django)
+    → PredictionService.get_prediction()
+      → GET http://localhost:8001/api/v1/predict/{TICKER} (ML Service)
+        → ML Service: fetches yfinance data → runs LSTM → returns JSON
+      ← normalize_ml_response() (adapter layer)
+      → Prediction.objects.create() (saved to DB for audit)
+    ← { ticker, signal, confidence, price, valid, latency_ms }
+  ← Response to frontend
+User sees: "BUY" or "SELL" or "HOLD" signal with confidence bar
+
+B) PORTFOLIO AGGREGATION:
+User → GET /api/v1/portfolio/
+  → PortfolioService.get_user_portfolio(user)
+    → Trade.objects.filter(user=user)  (user's own trades only)
+    → Groups by symbol
+    → Calculates: quantity, avg_entry, current_price (via ML), unrealized_pnl
+    → Returns: { balance, pnl, positions[], history[] }
+  ← { balance, pnl, positions, history }
+User sees: Holdings table + pie chart + balance
+
+C) TRADE EXECUTION (defined but not called from UI):
+User → POST /api/v1/trade/ { ticker, action, quantity }
+  → TradeService.execute_trade(user, ticker, action, quantity)
+    → PredictionService.get_prediction(ticker) (current price)
+    → Validates: balance, max_trade_amount, position qty
+    → Calculates FIFO PnL for SELL
+    → Trade.objects.create() (saved to DB)
+  ← Trade object returned
+NOTE: This endpoint EXISTS in the backend but has NO UI trigger in the
+frontend. The "Execute Trade" button is not implemented.
+
+D) MARKET PRICES FLOW:
+User → GET /api/v1/market/prices/
+  → MarketPricesView
+    → Loops 8 symbols (BTC, ETH, TSLA, AAPL, NVDA, MSFT, GOOGL, AMZN)
+    → Calls PredictionService.get_prediction() for each
+    → If ML service is DOWN: returns STATIC FALLBACK MOCK DATA
+  ← Array of { symbol, price, change, change_pct, high, low, volume }
+User sees: Price cards with up/down indicators
+
+================================================================================
+8. AUTHENTICATION & AUTHORIZATION
+================================================================================
+- JWT via SimpleJWT (rest_framework_simplejwt)
+- Token stored in localStorage on frontend (access + refresh)
+- Every API call includes: Authorization: Bearer <token>
+- Admin users (is_superuser or is_staff): see ALL trades
+- Regular users: see only their own trades (filtered by user FK)
+
+JWT ENDPOINTS:
+  POST /api/token/        → { access, refresh }
+  POST /api/token/refresh/ → { access }
+
+================================================================================
+9. FRONTEND STATE MANAGEMENT
+================================================================================
+- useState only (no Redux, no Context API for global state)
+- Each page manages its own local state
+- Token stored in localStorage (access_token, refresh_token, username)
+- getHeaders() helper attaches Bearer token to every fetch()
+
+================================================================================
+10. CRITICAL FIXES APPLIED (Session 2026-04-14)
+================================================================================
+
+LAYOUT & NAVIGATION FIXES:
+✅ Fixed sidebar state: moved currentPage from Dashboard.js to App.js
+✅ Removed dead code: renderContent(), ComingSoon components from Dashboard.js
+✅ Restored Charts.js integration into Dashboard.js grid
+✅ Fixed page routing: all 10 pages now accessible via sidebar
+✅ Cleaned CSS collisions: removed @import/font resets from sub-pages
+✅ Updated Sidebar config: all items now have valid `page` keys
+
+DATA FLOW FIXES:
+✅ Fixed API path: /api/trades/ → /api/v1/trades/
+✅ Fixed API path: /api/portfolio/ → /api/v1/portfolio/
+✅ Fixed API path: /api/ml/models/ → /api/v1/ml/models/
+✅ Fixed API path: /api/logs/celery/ → /api/v1/logs/celery/
+✅ Fixed API path: /api/logs/audit/ → /api/v1/logs/audit/
+✅ Fixed Trade model import in trading/views.py (was causing 500 error)
+✅ Fixed TradeListView: admin users see ALL trades (not just own)
+✅ Fixed StatsView: returns structured recent_activity with correct fields
+✅ Fixed MarketPricesView: 401 now properly calls onExpired() + resets loading
+✅ Fixed MarketPricesView: fallback mock data when ML service is down
+
+CHARTS FIXES:
+✅ Charts.js: Added explicit ticker/symbol normalization
+✅ Charts.js: Fixed grouped object to track BUY and SELL counts separately
+✅ Charts.js: Added demo data fallback when trades array is empty
+✅ Charts.js: Added console.debug pipeline: RAW → NORMALIZED → GROUPED → CHART
+
+DATABASE & BACKEND:
+✅ Created SystemSettings model + serializer + view + URL
+✅ Created Settings.js frontend page with full CRUD UI
+✅ Implemented GET/PATCH /api/v1/settings/ endpoint
+✅ Seeded 10 real trades in database (BTC, ETH, TSLA, NVDA, AAPL, MSFT, GOOGL)
+✅ Wired MLModelsView, CeleryLogsView, AuditLogsView into /api/v1/ routes
+✅ Fixed PortfolioService: uses correct field (positions not portfolio)
+✅ Added demo fallback in PortfolioService when current_price unavailable
+
+================================================================================
+11. CURRENT LIMITATIONS (NOT IMPLEMENTED)
+================================================================================
+⚠️ MANUAL TRADE EXECUTION: TradeService.execute_trade() exists in backend
+   but there is NO "Execute Trade" button in the frontend UI. User must use
+   Postman or curl to trigger a trade.
+
+⚠️ AUTO-TRADE SYSTEM: SystemSettings.auto_trade flag exists but has no
+   effect. No Celery task reads this flag to auto-execute trades.
+
+⚠️ LOGS ARE MOCKED: CeleryLogsView and AuditLogsView return hardcoded
+   static arrays, not real Celery task results or Django LogEntry records.
+
+⚠️ ML MODELS PAGE IS MOCKED: Returns hardcoded model health data.
+   Does not scan actual .keras files in ml_service/models/.
+
+⚠️ MARKET PRICE FALLBACK IS STATIC: When ML service is down, market prices
+   show hardcoded values (BTC=$70000) regardless of real market.
+
+⚠️ PORTFOLIO CACHING: PortfolioService calls PredictionService for every
+   ticker on every page load. No Redis caching implemented.
+
+⚠️ PREDICTION DOES NOT AUTO-TRADE: A prediction signal (BUY/SELL) is
+   displayed but does not trigger a trade. Operator must manually act.
+
+================================================================================
+12. HOW TO RUN (LOCAL)
+================================================================================
+A) PREREQUISITES:
+   - Python 3.10+
+   - Node.js 18+
+   - PostgreSQL 15 running on port 5432
+   - Redis running on port 6379 (for Celery)
+
+B) BACKEND:
+   cd backend
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   python manage.py makemigrations administration
+   python manage.py migrate
+   python manage.py runserver 0.0.0.0:8000
+
+C) ML SERVICE:
+   cd ml_service
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   uvicorn main:app --host 0.0.0.0 --port 8001
+
+D) FRONTEND:
+   cd frontend
+   npm install
+   npm start
+
+E) SEED TEST DATA:
+   python manage.py shell -c "
+   from administration.models import Trade
+   from django.contrib.auth.models import User
+   from decimal import Decimal
+   user = User.objects.first()
+   trades = [
+       ('BTC-USD','BUY',Decimal('0.10'),Decimal('68000.00'),0.85),
+       ('BTC-USD','SELL',Decimal('0.05'),Decimal('71000.00'),0.90),
+       ('ETH-USD','BUY',Decimal('2.0'),Decimal('2400.00'),0.78),
+       ('TSLA','BUY',Decimal('10.0'),Decimal('180.00'),0.65),
+       ('NVDA','BUY',Decimal('5.0'),Decimal('850.00'),0.92),
+       ('AAPL','BUY',Decimal('15.0'),Decimal('170.00'),0.70),
+       ('BTC-USD','BUY',Decimal('0.02'),Decimal('69500.00'),0.88),
+       ('ETH-USD','SELL',Decimal('1.0'),Decimal('2650.00'),0.82),
+       ('MSFT','BUY',Decimal('8.0'),Decimal('420.00'),0.75),
+       ('GOOGL','BUY',Decimal('12.0'),Decimal('150.00'),0.68),
+   ]
+   for s,a,q,p,c in trades:
+       Trade.objects.create(user=user,symbol=s,action=a,quantity=q,price=p,confidence=c)
+   print(f'Trades: {Trade.objects.count()}')
+   "
+
+================================================================================
+13. ENVIRONMENT VARIABLES (.env)
+================================================================================
+DEBUG=True
+SECRET_KEY=<your-secret-key>
+POSTGRES_DB=trading_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+REDIS_URL=redis://localhost:6379
+ML_SERVICE_URL=http://localhost:8001
+
+================================================================================
+14. TESTING API ENDPOINTS (curl examples)
+================================================================================
+A) LOGIN:
+   curl -X POST http://127.0.0.1:8000/api/token/ \
+     -H "Content-Type: application/json" \
+     -d '{"username":"admin","password":"password"}'
+
+B) GET TRADES (with token):
+   TOKEN=<access_token>
+   curl http://127.0.0.1:8000/api/v1/trades/ \
+     -H "Authorization: Bearer $TOKEN"
+
+C) GET STATS:
+   curl http://127.0.0.1:8000/api/stats/ \
+     -H "Authorization: Bearer $TOKEN"
+
+D) GET PORTFOLIO:
+   curl http://127.0.0.1:8000/api/v1/portfolio/ \
+     -H "Authorization: Bearer $TOKEN"
+
+E) GET MARKET PRICES:
+   curl http://127.0.0.1:8000/api/v1/market/prices/
+
+================================================================================
+GUIDE GENERATED: 2026-04-14
+LAST MAJOR SESSION: Admin Dashboard full restoration + data flow fixes
 ================================================================================

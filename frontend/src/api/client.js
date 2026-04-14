@@ -1,74 +1,64 @@
-/**
- * Production-grade API client using fetch.
- * Acts as the thin communication layer between React and the Django/FastAPI backend.
- */
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const BASE_URL = "http://127.0.0.1:8000";
+const ML_URL = "http://127.0.0.1:8001";
 
-async function apiClient(endpoint, { body, ...customConfig } = {}) {
-  const token = localStorage.getItem("access_token");
+const getHeaders = () => {
+    const token = localStorage.getItem("access_token");
+    return {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+    };
+};
 
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const config = {
-    method: body ? "POST" : "GET",
-    ...customConfig,
-    headers: {
-      ...headers,
-      ...customConfig.headers,
-    },
-  };
-
-  if (body) {
-    config.body = JSON.stringify(body);
-  }
-
-  try {
-    const response = await fetch(`${BASE_URL}${endpoint}`, config);
-
-    // 401 Unauthorized: Auto-logout and redirect
+const handleResponse = async (response) => {
     if (response.status === 401) {
-      localStorage.removeItem("access_token");
-      // Use window.location for a hard redirect to clear all state
-      window.location.assign("/login?error=session_expired");
-      return Promise.reject({
-        message: "Session expired. Please login again.",
-      });
+        localStorage.removeItem("access_token");
+        window.location.href = "/"; // Force redirect to login
+        throw new Error("Session expired");
     }
-
-    // Handle empty responses (like 204 No Content)
-    if (response.status === 204) {
-      return null;
-    }
-
     const data = await response.json();
+    console.log("API RESPONSE:", data);
+    if (!response.ok) throw new Error(data.detail || data.error || "Request failed");
+    return data;
+};
 
-    if (response.ok) {
-      return data;
-    }
+export const api = {
+    // Auth
+    login: async (username, password) => {
+        const res = await fetch(`${BASE_URL}/api/token/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        return handleResponse(res);
+    },
 
-    // Throw meaningful errors for non-2xx responses
-    const error = new Error(
-      data.message || data.detail || response.statusText || "API Error",
-    );
-    error.status = response.status;
-    error.data = data;
-    throw error;
-  } catch (err) {
-    // Catch network errors or JSON parsing errors
-    if (!err.status) {
-      console.error("[API Network Error]:", err);
-      throw new Error(
-        "Could not connect to the server. Please check your internet connection.",
-      );
-    }
-    throw err;
-  }
-}
+    // Dashboard
+    getStats: () => fetch(`${BASE_URL}/api/stats/`, { headers: getHeaders() }).then(handleResponse),
 
-export default apiClient;
+    // Predictions
+    getPredictions: () => fetch(`${BASE_URL}/api/v1/predictions/`, { headers: getHeaders() }).then(handleResponse),
+    predictTicker: (ticker) => fetch(`${BASE_URL}/api/v1/predict/${ticker.toUpperCase()}/`, { headers: getHeaders() }).then(handleResponse),
+
+    // Trades
+    getTrades: () => fetch(`${BASE_URL}/api/v1/trades/`, { headers: getHeaders() }).then(handleResponse),
+
+    // Market
+    getMarketPrices: () => fetch(`${BASE_URL}/api/v1/market/prices/`, { headers: getHeaders() }).then(handleResponse),
+
+    // Health
+    getMLStatus: async () => {
+        try {
+            // Check through backend proxy or directly
+            const res = await fetch(`${BASE_URL}/api/v1/health/`, { headers: getHeaders() });
+            return await handleResponse(res);
+        } catch (e) {
+            return { status: "error" };
+        }
+    },
+
+    // Users (Admin)
+    getUsers: () => fetch(`${BASE_URL}/api/users/`, { headers: getHeaders() }).then(handleResponse),
+    createUser: (data) => fetch(`${BASE_URL}/api/users/`, { method: 'POST', headers: getHeaders(), body: JSON.stringify(data) }).then(handleResponse),
+    toggleUser: (id) => fetch(`${BASE_URL}/api/users/${id}/toggle/`, { method: 'POST', headers: getHeaders() }).then(handleResponse),
+    deleteUser: (id) => fetch(`${BASE_URL}/api/users/${id}/`, { method: 'DELETE', headers: getHeaders() }),
+};
