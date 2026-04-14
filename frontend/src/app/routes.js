@@ -17,6 +17,7 @@ import MLModels from "../pages/MLModels";
 import CeleryLogs from "../pages/CeleryLogs";
 import AuditLogs from "../pages/AuditLogs";
 import SettingsAdmin from "../pages/Settings";
+import AdminLayout from "../components/admin/AdminLayout";
 
 export const ROUTES = {
   PUBLIC: [
@@ -25,17 +26,17 @@ export const ROUTES = {
   ],
 
   ADMIN: [
-    { path: "/admin/dashboard", component: Dashboard },
-    { path: "/admin/users", component: Users },
-    { path: "/admin/trades", component: Trades },
-    { path: "/admin/predictions", component: Predictions },
-    { path: "/admin/prices", component: MarketPrices },
-    { path: "/admin/portfolios", component: Portfolios },
-    { path: "/admin/charts", component: Charts },
-    { path: "/admin/ml-models", component: MLModels },
-    { path: "/admin/celery-logs", component: CeleryLogs },
-    { path: "/admin/audit-logs", component: AuditLogs },
-    { path: "/admin/settings", component: SettingsAdmin },
+    { path: "dashboard", component: Dashboard },
+    { path: "users", component: Users },
+    { path: "trades", component: Trades },
+    { path: "predictions", component: Predictions },
+    { path: "prices", component: MarketPrices },
+    { path: "portfolios", component: Portfolios },
+    { path: "charts", component: Charts },
+    { path: "ml-models", component: MLModels },
+    { path: "celery-logs", component: CeleryLogs },
+    { path: "audit-logs", component: AuditLogs },
+    { path: "settings", component: SettingsAdmin },
   ],
 
   APP: [
@@ -47,4 +48,5 @@ export const ROUTES = {
   ],
 };
 
+export { AdminLayout };
 export default ROUTES;

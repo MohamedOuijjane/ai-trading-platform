@@ -43,38 +43,58 @@ const getHeaders = () => ({
 });
 
 export default function MLModels({ onExpired }) {
-  const [data,    setData]    = useState({ models: [], metrics: {} });
+  const [data, setData] = useState({ models: [], metrics: {} });
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
     fetch(`${API_URL}/api/v1/ml/models/`, { headers: getHeaders() })
-      .then(r => { if (r.status===401){onExpired();return null;} return r.json(); })
-      .then(d => { if (d) setData(d); })
+      .then((r) => {
+        if (r.status === 401) {
+          onExpired();
+          return null;
+        }
+        return r.json();
+      })
+      .then((d) => {
+        if (d) setData(d);
+      })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  if (loading) return <><style>{styles}</style><div className="loading">CHARGEMENT...</div></>;
+  if (loading)
+    return (
+      <div className="admin-page">
+        <style>{styles}</style>
+        <div className="loading">CHARGEMENT...</div>
+      </div>
+    );
 
-  const ready   = data.models.filter(m => m.status === 'ready').length;
-  const missing = data.models.filter(m => m.status === 'missing').length;
+  const ready = data.models.filter((m) => m.status === "ready").length;
+  const missing = data.models.filter((m) => m.status === "missing").length;
   const totalPred = data.models.reduce((a, m) => a + m.predictions, 0);
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
         <h2>Modèles ML ({data.models.length})</h2>
-        <button className="btn-refresh" onClick={load}>↻ Rafraîchir</button>
+        <button className="btn-refresh" onClick={load}>
+          ↻ Rafraîchir
+        </button>
       </div>
 
       <div className="metrics-grid">
         <div className="metric-card">
           <div className="metric-label">Modèles prêts</div>
-          <div className="metric-value" style={{color:"var(--green)"}}>{ready}</div>
+          <div className="metric-value" style={{ color: "var(--green)" }}>
+            {ready}
+          </div>
           <div className="metric-sub">sur {data.models.length} total</div>
         </div>
         <div className="metric-card">
@@ -84,39 +104,57 @@ export default function MLModels({ onExpired }) {
         </div>
         <div className="metric-card">
           <div className="metric-label">Latence moyenne</div>
-          <div className="metric-value" style={{fontSize:20}}>
-            {data.metrics?.avg_latency_ms ? `${data.metrics.avg_latency_ms.toFixed(0)} ms` : "—"}
+          <div className="metric-value" style={{ fontSize: 20 }}>
+            {data.metrics?.avg_latency_ms
+              ? `${data.metrics.avg_latency_ms.toFixed(0)} ms`
+              : "—"}
           </div>
           <div className="metric-sub">
-            {data.metrics?.total_predictions ? `${data.metrics.total_predictions} requêtes` : "ML metrics"}
+            {data.metrics?.total_predictions
+              ? `${data.metrics.total_predictions} requêtes`
+              : "ML metrics"}
           </div>
         </div>
       </div>
 
       <div className="models-grid">
-        {data.models.map(m => (
+        {data.models.map((m) => (
           <div key={m.ticker} className={`model-card ${m.status}`}>
             <div className="model-ticker">
               <span>{m.ticker}</span>
-              <span className={`badge badge-${m.status === 'ready' ? 'green' : 'red'}`}>
-                {m.status === 'ready' ? 'PRÊT' : 'MANQUANT'}
+              <span
+                className={`badge badge-${m.status === "ready" ? "green" : "red"}`}
+              >
+                {m.status === "ready" ? "PRÊT" : "MANQUANT"}
               </span>
             </div>
             <div className="model-row">
               <span className="model-key">Modèle LSTM</span>
-              <span style={{color: m.model_exists ? "var(--green)" : "var(--red)", fontSize:12}}>
+              <span
+                style={{
+                  color: m.model_exists ? "var(--green)" : "var(--red)",
+                  fontSize: 12,
+                }}
+              >
                 {m.model_exists ? "✓" : "✗"}
               </span>
             </div>
             <div className="model-row">
               <span className="model-key">Scaler</span>
-              <span style={{color: m.scaler_exists ? "var(--green)" : "var(--red)", fontSize:12}}>
+              <span
+                style={{
+                  color: m.scaler_exists ? "var(--green)" : "var(--red)",
+                  fontSize: 12,
+                }}
+              >
                 {m.scaler_exists ? "✓" : "✗"}
               </span>
             </div>
             <div className="model-row">
               <span className="model-key">Taille</span>
-              <span className="model-val">{m.size_kb > 0 ? `${m.size_kb} KB` : "—"}</span>
+              <span className="model-val">
+                {m.size_kb > 0 ? `${m.size_kb} KB` : "—"}
+              </span>
             </div>
             <div className="model-row">
               <span className="model-key">Prédictions</span>
@@ -125,6 +163,6 @@ export default function MLModels({ onExpired }) {
           </div>
         ))}
       </div>
-    </>
+    </div>
   );
 }

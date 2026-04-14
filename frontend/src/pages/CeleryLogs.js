@@ -43,35 +43,64 @@ const getHeaders = () => ({
 });
 
 const actionBadge = (action, type) => {
-  if (type === 'prediction') return <span className="badge" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}>IA</span>;
-  if (type === 'trade')      return <span className="badge" style={{background:"rgba(245,158,11,0.12)",color:"#f59e0b"}}>{action}</span>;
-  if (action === "Addition") return <span className="badge badge-add">AJOUT</span>;
-  if (action === "Changement") return <span className="badge badge-change">MODIF</span>;
-  if (action === "Suppression") return <span className="badge badge-delete">SUPPR</span>;
+  if (type === "prediction")
+    return (
+      <span
+        className="badge"
+        style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}
+      >
+        IA
+      </span>
+    );
+  if (type === "trade")
+    return (
+      <span
+        className="badge"
+        style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}
+      >
+        {action}
+      </span>
+    );
+  if (action === "Addition")
+    return <span className="badge badge-add">AJOUT</span>;
+  if (action === "Changement")
+    return <span className="badge badge-change">MODIF</span>;
+  if (action === "Suppression")
+    return <span className="badge badge-delete">SUPPR</span>;
   return <span className="badge badge-add">{action}</span>;
 };
 
 export default function CeleryLogs({ onExpired }) {
-  const [logs,    setLogs]    = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
     fetch(`${API_URL}/api/v1/logs/celery/`, { headers: getHeaders() })
-      .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
-      .then(d => setLogs(Array.isArray(d) ? d : []))
+      .then((r) => {
+        if (r.status === 401) {
+          onExpired();
+          return [];
+        }
+        return r.json();
+      })
+      .then((d) => setLogs(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
         <h2>Logs d'activité ({logs.length})</h2>
-        <button className="btn-refresh" onClick={load}>↻ Rafraîchir</button>
+        <button className="btn-refresh" onClick={load}>
+          ↻ Rafraîchir
+        </button>
       </div>
 
       <div className="table-card">
@@ -81,28 +110,71 @@ export default function CeleryLogs({ onExpired }) {
         <table>
           <thead>
             <tr>
-              <th>Date/Heure</th><th>Utilisateur</th><th>Action</th>
-              <th>Modèle</th><th>Objet</th><th>Détails</th>
+              <th>Date/Heure</th>
+              <th>Utilisateur</th>
+              <th>Action</th>
+              <th>Modèle</th>
+              <th>Objet</th>
+              <th>Détails</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="loading">CHARGEMENT...</div></td></tr>
-            ) : logs.length === 0 ? (
-              <tr><td colSpan="6" className="empty">Aucun log disponible</td></tr>
-            ) : logs.map(l => (
-              <tr key={l.id}>
-                <td className="mono">{l.time}</td>
-                <td className="user">{l.user}</td>
-                <td>{actionBadge(l.action)}</td>
-                <td style={{color:"var(--purple)",fontFamily:"Space Mono",fontSize:11}}>{l.model}</td>
-                <td style={{fontSize:12,maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.object}</td>
-                <td style={{fontSize:11,color:"var(--text-muted)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.message}</td>
+              <tr>
+                <td colSpan="6">
+                  <div className="loading">CHARGEMENT...</div>
+                </td>
               </tr>
-            ))}
+            ) : logs.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="empty">
+                  Aucun log disponible
+                </td>
+              </tr>
+            ) : (
+              logs.map((l) => (
+                <tr key={l.id}>
+                  <td className="mono">{l.time}</td>
+                  <td className="user">{l.user}</td>
+                  <td>{actionBadge(l.action)}</td>
+                  <td
+                    style={{
+                      color: "var(--purple)",
+                      fontFamily: "Space Mono",
+                      fontSize: 11,
+                    }}
+                  >
+                    {l.model}
+                  </td>
+                  <td
+                    style={{
+                      fontSize: 12,
+                      maxWidth: 200,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {l.object}
+                  </td>
+                  <td
+                    style={{
+                      fontSize: 11,
+                      color: "var(--text-muted)",
+                      maxWidth: 200,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {l.message}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

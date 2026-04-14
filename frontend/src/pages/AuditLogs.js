@@ -68,8 +68,24 @@ const getHeaders = () => ({
 });
 
 const actionBadge = (action, flag, type) => {
-  if (type === 'prediction') return <span className="badge" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}>PRÉDICTION</span>;
-  if (type === 'trade')      return <span className="badge" style={{background:"rgba(245,158,11,0.12)",color:"#f59e0b"}}>{action}</span>;
+  if (type === "prediction")
+    return (
+      <span
+        className="badge"
+        style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa" }}
+      >
+        PRÉDICTION
+      </span>
+    );
+  if (type === "trade")
+    return (
+      <span
+        className="badge"
+        style={{ background: "rgba(245,158,11,0.12)", color: "#f59e0b" }}
+      >
+        {action}
+      </span>
+    );
   if (flag === 1) return <span className="badge badge-add">AJOUT</span>;
   if (flag === 2) return <span className="badge badge-change">MODIF</span>;
   if (flag === 3) return <span className="badge badge-delete">SUPPR</span>;
@@ -77,40 +93,50 @@ const actionBadge = (action, flag, type) => {
 };
 
 export default function AuditLogs({ onExpired }) {
-  const [logs,    setLogs]    = useState([]);
+  const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState("ALL");
+  const [filter, setFilter] = useState("ALL");
 
   const load = () => {
     setLoading(true);
     fetch(`${API_URL}/api/v1/logs/audit/`, { headers: getHeaders() })
-      .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
-      .then(d => setLogs(Array.isArray(d) ? d : []))
+      .then((r) => {
+        if (r.status === 401) {
+          onExpired();
+          return [];
+        }
+        return r.json();
+      })
+      .then((d) => setLogs(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
-  const filtered = logs.filter(l => {
-    if (filter === "ALL")    return true;
-    if (filter === "ADD")    return l.flag === 1;
+  const filtered = logs.filter((l) => {
+    if (filter === "ALL") return true;
+    if (filter === "ADD") return l.flag === 1;
     if (filter === "CHANGE") return l.flag === 2;
     if (filter === "DELETE") return l.flag === 3;
     return true;
   });
 
-  const totalAdd    = logs.filter(l => l.flag === 1).length;
-  const totalChange = logs.filter(l => l.flag === 2).length;
-  const totalDelete = logs.filter(l => l.flag === 3).length;
-  const users = [...new Set(logs.map(l => l.user))].length;
+  const totalAdd = logs.filter((l) => l.flag === 1).length;
+  const totalChange = logs.filter((l) => l.flag === 2).length;
+  const totalDelete = logs.filter((l) => l.flag === 3).length;
+  const users = [...new Set(logs.map((l) => l.user))].length;
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
         <h2>Logs d'audit ({logs.length})</h2>
-        <button className="btn-refresh" onClick={load}>↻ Rafraîchir</button>
+        <button className="btn-refresh" onClick={load}>
+          ↻ Rafraîchir
+        </button>
       </div>
 
       {/* STATS */}
@@ -122,17 +148,23 @@ export default function AuditLogs({ onExpired }) {
         </div>
         <div className="mini-card">
           <div className="mini-label">Ajouts</div>
-          <div className="mini-value" style={{color:"var(--green)"}}>{totalAdd}</div>
+          <div className="mini-value" style={{ color: "var(--green)" }}>
+            {totalAdd}
+          </div>
           <div className="mini-sub">créations</div>
         </div>
         <div className="mini-card">
           <div className="mini-label">Modifications</div>
-          <div className="mini-value" style={{color:"var(--orange)"}}>{totalChange}</div>
+          <div className="mini-value" style={{ color: "var(--orange)" }}>
+            {totalChange}
+          </div>
           <div className="mini-sub">mises à jour</div>
         </div>
         <div className="mini-card">
           <div className="mini-label">Suppressions</div>
-          <div className="mini-value" style={{color:"var(--red)"}}>{totalDelete}</div>
+          <div className="mini-value" style={{ color: "var(--red)" }}>
+            {totalDelete}
+          </div>
           <div className="mini-sub">{users} utilisateur(s)</div>
         </div>
       </div>
@@ -140,14 +172,14 @@ export default function AuditLogs({ onExpired }) {
       {/* FILTRES */}
       <div className="filters-bar">
         {[
-          { key: "ALL",    label: "Tous",          cls: "active-all"    },
-          { key: "ADD",    label: "Ajouts",        cls: "active-add"    },
+          { key: "ALL", label: "Tous", cls: "active-all" },
+          { key: "ADD", label: "Ajouts", cls: "active-add" },
           { key: "CHANGE", label: "Modifications", cls: "active-change" },
-          { key: "DELETE", label: "Suppressions",  cls: "active-delete" },
-        ].map(f => (
+          { key: "DELETE", label: "Suppressions", cls: "active-delete" },
+        ].map((f) => (
           <button
             key={f.key}
-            className={`filter-btn ${filter===f.key ? f.cls : ""}`}
+            className={`filter-btn ${filter === f.key ? f.cls : ""}`}
             onClick={() => setFilter(f.key)}
           >
             {f.label}
@@ -173,22 +205,43 @@ export default function AuditLogs({ onExpired }) {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="loading">CHARGEMENT...</div></td></tr>
-            ) : filtered.length === 0 ? (
-              <tr><td colSpan="6" className="empty">Aucun log trouvé</td></tr>
-            ) : filtered.map(l => (
-              <tr key={l.id}>
-                <td className="mono">{l.time}</td>
-                <td className="user">{l.user}</td>
-                <td>{actionBadge(l.action, l.flag)}</td>
-                <td><span className="model-chip">{l.model}</span></td>
-                <td><span className="truncate">{l.object}</span></td>
-                <td><span className="truncate" style={{color:"var(--text-muted)",fontSize:11}}>{l.message || "—"}</span></td>
+              <tr>
+                <td colSpan="6">
+                  <div className="loading">CHARGEMENT...</div>
+                </td>
               </tr>
-            ))}
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="empty">
+                  Aucun log trouvé
+                </td>
+              </tr>
+            ) : (
+              filtered.map((l) => (
+                <tr key={l.id}>
+                  <td className="mono">{l.time}</td>
+                  <td className="user">{l.user}</td>
+                  <td>{actionBadge(l.action, l.flag)}</td>
+                  <td>
+                    <span className="model-chip">{l.model}</span>
+                  </td>
+                  <td>
+                    <span className="truncate">{l.object}</span>
+                  </td>
+                  <td>
+                    <span
+                      className="truncate"
+                      style={{ color: "var(--text-muted)", fontSize: 11 }}
+                    >
+                      {l.message || "—"}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

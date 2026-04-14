@@ -84,9 +84,11 @@ export default function Portfolios() {
       console.log("FETCH PORTFOLIO START");
       console.log("TOKEN:", localStorage.getItem("access_token"));
       try {
-        const res = await fetch(`${API_URL}/api/v1/portfolio/`, { headers: getHeaders() });
+        const res = await fetch(`${API_URL}/api/v1/portfolio/`, {
+          headers: getHeaders(),
+        });
         console.log("RESPONSE:", res);
-        
+
         if (!res.ok) throw new Error(`API error: ${res.status}`);
 
         const jsonData = await res.json();
@@ -107,17 +109,17 @@ export default function Portfolios() {
     fetchPortfolio();
   }, []);
 
-  if (loading) return <div style={{padding:40}}>Chargement...</div>;
-  
+  if (loading) return <div style={{ padding: 40 }}>Chargement...</div>;
+
   const positions = data?.positions || data?.portfolio || [];
-  
-  const chartData = positions.map(p => ({
+
+  const chartData = positions.map((p) => ({
     name: p.ticker || p.symbol || "Unknown",
     value: (p.quantity || 0) * (p.current || p.price || 0),
   }));
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="header">
@@ -134,33 +136,39 @@ export default function Portfolios() {
         <div className="card">
           <div className="title">Profit / Loss Réalisé</div>
           <div className={`value ${(data?.pnl || 0) >= 0 ? "profit" : "loss"}`}>
-            {(data?.pnl || 0) >= 0 ? "+" : ""}
-            ${data?.pnl?.toFixed(2) || "0.00"}
+            {(data?.pnl || 0) >= 0 ? "+" : ""}${data?.pnl?.toFixed(2) || "0.00"}
           </div>
         </div>
       </div>
-{/* GRAPHIQUE PORTFOLIO */}
-<div className="card" style={{ marginBottom: "20px", height: "320px" }}>
-  <div className="title">Répartition du portfolio (Valeur actuelle)</div>
+      {/* GRAPHIQUE PORTFOLIO */}
+      <div className="card" style={{ marginBottom: "20px", height: "320px" }}>
+        <div className="title">Répartition du portfolio (Valeur actuelle)</div>
 
-  <ResponsiveContainer width="100%" height="90%">
-    <PieChart>
-      <Pie
-        data={chartData}
-        dataKey="value"
-        nameKey="name"
-        outerRadius={110}
-        label
-      >
-        {chartData.map((entry, index) => (
-          <Cell key={`cell-${index}`} fill={["#00d48a", "#60a5fa", "#f59e0b", "#a78bfa", "#f87171"][index % 5]} />
-        ))}
-      </Pie>
+        <ResponsiveContainer width="100%" height="90%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={110}
+              label
+            >
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={
+                    ["#00d48a", "#60a5fa", "#f59e0b", "#a78bfa", "#f87171"][
+                      index % 5
+                    ]
+                  }
+                />
+              ))}
+            </Pie>
 
-      <Tooltip />
-    </PieChart>
-  </ResponsiveContainer>
-</div>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
       {/* TABLE */}
       <table>
         <thead>
@@ -175,7 +183,11 @@ export default function Portfolios() {
 
         <tbody>
           {positions.length === 0 ? (
-            <tr><td colSpan="5" style={{textAlign:'center', padding:20}}>Aucune position ouverte</td></tr>
+            <tr>
+              <td colSpan="5" style={{ textAlign: "center", padding: 20 }}>
+                Aucune position ouverte
+              </td>
+            </tr>
           ) : (
             positions.map((p, idx) => (
               <tr key={p.ticker || p.symbol || idx}>
@@ -183,16 +195,17 @@ export default function Portfolios() {
                 <td>{p.quantity}</td>
                 <td>${(p.entry || p.invested || 0).toFixed(2)}</td>
                 <td>${(p.current || p.price || 0).toFixed(2)}</td>
-                <td className={(p.pnl || p.profit_loss || 0) >= 0 ? "up" : "down"}>
-                  {(p.pnl || p.profit_loss || 0) >= 0 ? "+" : ""}
-                  ${(p.pnl || p.profit_loss || 0).toFixed(2)}
+                <td
+                  className={(p.pnl || p.profit_loss || 0) >= 0 ? "up" : "down"}
+                >
+                  {(p.pnl || p.profit_loss || 0) >= 0 ? "+" : ""}$
+                  {(p.pnl || p.profit_loss || 0).toFixed(2)}
                 </td>
               </tr>
             ))
           )}
         </tbody>
       </table>
-    </>
+    </div>
   );
 }
-

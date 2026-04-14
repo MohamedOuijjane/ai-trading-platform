@@ -143,14 +143,14 @@ export default function MarketPrices({ onExpired }) {
 
   if (loading)
     return (
-      <>
+      <div className="admin-page">
         <style>{styles}</style>
         <div className="loading">CHARGEMENT DES PRIX...</div>
-      </>
+      </div>
     );
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
@@ -271,6 +271,6 @@ export default function MarketPrices({ onExpired }) {
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

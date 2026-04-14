@@ -60,16 +60,18 @@ const getHeaders = () => ({
 });
 
 export default function Trades({ onExpired }) {
-  const [trades,  setTrades]  = useState([]);
+  const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState("ALL");
+  const [filter, setFilter] = useState("ALL");
 
   useEffect(() => {
     const fetchTrades = async () => {
       console.log("TRADES FETCH START");
       console.log("TOKEN:", localStorage.getItem("access_token"));
       try {
-        const res = await fetch(`${API_URL}/api/v1/trades/`, { headers: getHeaders() });
+        const res = await fetch(`${API_URL}/api/v1/trades/`, {
+          headers: getHeaders(),
+        });
         console.log("TRADES RESPONSE:", res);
 
         if (res.status === 401) {
@@ -82,7 +84,7 @@ export default function Trades({ onExpired }) {
         const data = await res.json();
         console.log("TRADES DATA RAW:", data);
 
-        const formatted = (Array.isArray(data) ? data : []).map(t => ({
+        const formatted = (Array.isArray(data) ? data : []).map((t) => ({
           ...t,
           ticker: t.ticker || t.symbol || "UNKNOWN",
           action: (t.action || t.type || "BUY").toUpperCase(),
@@ -90,7 +92,7 @@ export default function Trades({ onExpired }) {
           quantity: parseFloat(t.quantity) || 0,
           profit_loss: t.profit_loss ? parseFloat(t.profit_loss) : null,
           confidence: parseFloat(t.confidence) || 0,
-          user: t.user || "system"
+          user: t.user || "system",
         }));
 
         setTrades(formatted);
@@ -105,16 +107,25 @@ export default function Trades({ onExpired }) {
     fetchTrades();
   }, []);
 
+  const filtered =
+    filter === "ALL" ? trades : trades.filter((t) => t.action === filter);
 
-  const filtered = filter === "ALL" ? trades : trades.filter(t => t.action === filter);
-
-  const totalBuy    = trades.filter(t => t.action === "BUY").length;
-  const totalSell   = trades.filter(t => t.action === "SELL").length;
-  const totalPL     = trades.reduce((acc, t) => acc + (parseFloat(t.profit_loss) || 0), 0);
-  const avgConf     = trades.length ? (trades.reduce((a,t) => a + (parseFloat(t.confidence) || 0), 0) / trades.length * 100).toFixed(0) : 0;
+  const totalBuy = trades.filter((t) => t.action === "BUY").length;
+  const totalSell = trades.filter((t) => t.action === "SELL").length;
+  const totalPL = trades.reduce(
+    (acc, t) => acc + (parseFloat(t.profit_loss) || 0),
+    0,
+  );
+  const avgConf = trades.length
+    ? (
+        (trades.reduce((a, t) => a + (parseFloat(t.confidence) || 0), 0) /
+          trades.length) *
+        100
+      ).toFixed(0)
+    : 0;
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
@@ -126,12 +137,18 @@ export default function Trades({ onExpired }) {
         <div className="mini-card">
           <div className="mini-label">Total trades</div>
           <div className="mini-value">{trades.length}</div>
-          <div className="mini-sub">{totalBuy} BUY · {totalSell} SELL</div>
+          <div className="mini-sub">
+            {totalBuy} BUY · {totalSell} SELL
+          </div>
         </div>
         <div className="mini-card">
           <div className="mini-label">Profit / Perte total</div>
-          <div className="mini-value" style={{color: totalPL >= 0 ? "var(--green)" : "var(--red)"}}>
-            {totalPL >= 0 ? "+" : ""}{totalPL.toFixed(2)}$
+          <div
+            className="mini-value"
+            style={{ color: totalPL >= 0 ? "var(--green)" : "var(--red)" }}
+          >
+            {totalPL >= 0 ? "+" : ""}
+            {totalPL.toFixed(2)}$
           </div>
           <div className={`mini-sub ${totalPL >= 0 ? "green" : "red"}`}>
             {totalPL >= 0 ? "En profit" : "En perte"}
@@ -144,7 +161,9 @@ export default function Trades({ onExpired }) {
         </div>
         <div className="mini-card">
           <div className="mini-label">Taux BUY</div>
-          <div className="mini-value">{trades.length ? ((totalBuy/trades.length)*100).toFixed(0) : 0}%</div>
+          <div className="mini-value">
+            {trades.length ? ((totalBuy / trades.length) * 100).toFixed(0) : 0}%
+          </div>
           <div className="mini-sub green">{totalBuy} achats</div>
         </div>
       </div>
@@ -154,10 +173,10 @@ export default function Trades({ onExpired }) {
         <div className="table-header">
           <h3>Historique des trades</h3>
           <div className="filters">
-            {["ALL","BUY","SELL"].map(f => (
+            {["ALL", "BUY", "SELL"].map((f) => (
               <button
                 key={f}
-                className={`filter-btn ${filter===f ? `active-${f.toLowerCase()}` : ""}`}
+                className={`filter-btn ${filter === f ? `active-${f.toLowerCase()}` : ""}`}
                 onClick={() => setFilter(f)}
               >
                 {f === "ALL" ? "Tous" : f}
@@ -168,48 +187,80 @@ export default function Trades({ onExpired }) {
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Utilisateur</th><th>Symbole</th>
-              <th>Action</th><th>Prix</th><th>Quantité</th>
-              <th>Confiance IA</th><th>P&L</th>
+              <th>Date</th>
+              <th>Utilisateur</th>
+              <th>Symbole</th>
+              <th>Action</th>
+              <th>Prix</th>
+              <th>Quantité</th>
+              <th>Confiance IA</th>
+              <th>P&L</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="8"><div className="loading">CHARGEMENT...</div></td></tr>
+              <tr>
+                <td colSpan="8">
+                  <div className="loading">CHARGEMENT...</div>
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan="8" className="empty">Aucun trade trouvé</td></tr>
-            ) : filtered.map(t => {
-              const pl = parseFloat(t.profit_loss);
-              const confPct = (parseFloat(t.confidence) || 0) * 100;
-              const date = new Date(t.executed_at).toLocaleString('fr-FR');
-              return (
-                <tr key={t.id}>
-                  <td className="mono">{date}</td>
-                  <td className="user">{t.user}</td>
-                  <td className="symbol">{t.ticker}</td>
-                  <td>
-                    <span className={`badge ${t.action==="BUY"?"badge-green":"badge-red"}`}>{t.action}</span>
-                  </td>
-                  <td className="mono">${parseFloat(t.price).toLocaleString()}</td>
-                  <td className="mono">{t.quantity}</td>
-                  <td>
-                    <span style={{fontSize:12}}>{confPct.toFixed(0)}%</span>
-                    <div className="confidence-bar">
-                      <div className="confidence-fill" style={{width:`${confPct}%`}} />
-                    </div>
-                  </td>
-                  <td>
-                    {t.profit_loss
-                      ? <span className={pl>=0?"pl-positive":"pl-negative"}>{pl>=0?"+":""}{pl.toFixed(2)}$</span>
-                      : <span style={{color:"var(--text-muted)"}}>—</span>
-                    }
-                  </td>
-                </tr>
-              );
-            })}
+              <tr>
+                <td colSpan="8" className="empty">
+                  Aucun trade trouvé
+                </td>
+              </tr>
+            ) : (
+              filtered.map((t) => {
+                const pl = parseFloat(t.profit_loss);
+                const confPct = (parseFloat(t.confidence) || 0) * 100;
+                const date = new Date(t.executed_at).toLocaleString("fr-FR");
+                return (
+                  <tr key={t.id}>
+                    <td className="mono">{date}</td>
+                    <td className="user">{t.user}</td>
+                    <td className="symbol">{t.ticker}</td>
+                    <td>
+                      <span
+                        className={`badge ${t.action === "BUY" ? "badge-green" : "badge-red"}`}
+                      >
+                        {t.action}
+                      </span>
+                    </td>
+                    <td className="mono">
+                      ${parseFloat(t.price).toLocaleString()}
+                    </td>
+                    <td className="mono">{t.quantity}</td>
+                    <td>
+                      <span style={{ fontSize: 12 }}>
+                        {confPct.toFixed(0)}%
+                      </span>
+                      <div className="confidence-bar">
+                        <div
+                          className="confidence-fill"
+                          style={{ width: `${confPct}%` }}
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      {t.profit_loss ? (
+                        <span
+                          className={pl >= 0 ? "pl-positive" : "pl-negative"}
+                        >
+                          {pl >= 0 ? "+" : ""}
+                          {pl.toFixed(2)}$
+                        </span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

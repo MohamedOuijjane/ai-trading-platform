@@ -248,10 +248,16 @@ export default function Charts({ onExpired }) {
   const barData = tradesBySymbol();
   const pieData = predBySignal();
 
-  if (loading) return <div className="loading">CHARGEMENT DES GRAPHES...</div>;
+  if (loading)
+    return (
+      <div className="admin-page">
+        <style>{styles}</style>
+        <div className="loading">CHARGEMENT DES GRAPHES...</div>
+      </div>
+    );
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
       <div className="charts-grid">
         {/* BAR CHART — Trades par symbole */}
@@ -355,6 +361,6 @@ export default function Charts({ onExpired }) {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

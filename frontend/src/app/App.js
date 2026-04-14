@@ -1,6 +1,12 @@
 import React, { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { ROUTES } from "./routes";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { ROUTES, AdminLayout } from "./routes";
 import ProtectedRoute from "../components/ProtectedRoute";
 import AdminRoute from "../components/AdminRoute";
 import MainLayout from "../components/layout/MainLayout";
@@ -35,9 +41,15 @@ const App = () => {
           ))}
 
           <Route element={<AdminRoute />}>
-            {ROUTES.ADMIN.map(({ path, component: Component }) => (
-              <Route key={path} path={path} element={<Component />} />
-            ))}
+            <Route element={<AdminLayout />}>
+              {ROUTES.ADMIN.map(({ path, component: Component }) => (
+                <Route
+                  key={path}
+                  path={`/admin/${path}`}
+                  element={<Component />}
+                />
+              ))}
+            </Route>
           </Route>
 
           <Route element={<ProtectedRoute />}>

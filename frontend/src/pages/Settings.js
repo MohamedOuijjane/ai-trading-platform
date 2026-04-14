@@ -121,7 +121,9 @@ export default function Settings() {
     const loadSettings = async () => {
       console.log("SETTINGS FETCH START");
       try {
-        const res = await fetch(`${API_URL}/api/v1/settings/`, { headers: getHeaders() });
+        const res = await fetch(`${API_URL}/api/v1/settings/`, {
+          headers: getHeaders(),
+        });
         console.log("SETTINGS RESPONSE:", res);
 
         if (!res.ok) throw new Error(`API error: ${res.status}`);
@@ -131,7 +133,10 @@ export default function Settings() {
         setSettings(data);
       } catch (err) {
         console.error("SETTINGS LOAD ERROR:", err);
-        setMessage({ type: "error", text: "Impossible de charger les paramètres." });
+        setMessage({
+          type: "error",
+          text: "Impossible de charger les paramètres.",
+        });
         setSettings({
           trading_enabled: true,
           max_trade_amount: 1000,
@@ -169,7 +174,10 @@ export default function Settings() {
 
       const data = await res.json();
       setSettings(data);
-      setMessage({ type: "success", text: "Paramètres enregistrés avec succès." });
+      setMessage({
+        type: "success",
+        text: "Paramètres enregistrés avec succès.",
+      });
     } catch (err) {
       console.error("SETTINGS SAVE ERROR:", err);
       setMessage({ type: "error", text: "Erreur lors de l'enregistrement." });
@@ -180,15 +188,15 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <>
+      <div className="admin-page">
         <style>{styles}</style>
         <div className="loading">CHARGEMENT...</div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
       <div className="settings-container">
         <div className="settings-header">
@@ -212,7 +220,9 @@ export default function Settings() {
                 max="1"
                 step="0.01"
                 value={settings?.min_confidence ?? 0.75}
-                onChange={(e) => handleChange("min_confidence", parseFloat(e.target.value))}
+                onChange={(e) =>
+                  handleChange("min_confidence", parseFloat(e.target.value))
+                }
               />
             </div>
             <div className="form-group">
@@ -241,7 +251,9 @@ export default function Settings() {
                 min="0"
                 step="100"
                 value={settings?.max_trade_amount ?? 1000}
-                onChange={(e) => handleChange("max_trade_amount", parseFloat(e.target.value))}
+                onChange={(e) =>
+                  handleChange("max_trade_amount", parseFloat(e.target.value))
+                }
               />
             </div>
           </div>
@@ -249,13 +261,17 @@ export default function Settings() {
           <div className="toggle-row">
             <div className="toggle-info">
               <span className="toggle-title">Trading activé</span>
-              <span className="toggle-desc">Autoriser les trades sur la plateforme</span>
+              <span className="toggle-desc">
+                Autoriser les trades sur la plateforme
+              </span>
             </div>
             <label className="toggle-switch">
               <input
                 type="checkbox"
                 checked={settings?.trading_enabled ?? true}
-                onChange={(e) => handleChange("trading_enabled", e.target.checked)}
+                onChange={(e) =>
+                  handleChange("trading_enabled", e.target.checked)
+                }
               />
               <span className="toggle-slider" />
             </label>
@@ -264,7 +280,9 @@ export default function Settings() {
           <div className="toggle-row">
             <div className="toggle-info">
               <span className="toggle-title">Trading automatique</span>
-              <span className="toggle-desc">Exécuter automatiquement les trades basés sur les signaux IA</span>
+              <span className="toggle-desc">
+                Exécuter automatiquement les trades basés sur les signaux IA
+              </span>
             </div>
             <label className="toggle-switch">
               <input
@@ -278,11 +296,17 @@ export default function Settings() {
         </div>
 
         <div className="settings-footer">
-          <button className={`btn-save ${saving ? "saving" : ""}`} onClick={handleSave} disabled={saving}>
-            {saving ? "⏳ Enregistrement..." : "💾 Enregistrer les modifications"}
+          <button
+            className={`btn-save ${saving ? "saving" : ""}`}
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving
+              ? "⏳ Enregistrement..."
+              : "💾 Enregistrer les modifications"}
           </button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

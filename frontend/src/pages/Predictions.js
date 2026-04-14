@@ -187,7 +187,7 @@ export default function Predictions({ onExpired }) {
   };
 
   return (
-    <>
+    <div className="admin-page">
       <style>{styles}</style>
 
       <div className="page-header">
@@ -371,6 +371,6 @@ export default function Predictions({ onExpired }) {
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }
