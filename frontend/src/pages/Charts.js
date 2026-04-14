@@ -187,26 +187,36 @@ export default function Charts({ onExpired }) {
 
   // ── Données Bar Chart : trades par symbole ──
   const tradesBySymbol = () => {
-    const map = {};
-    trades.forEach((t) => {
+    // ── DEBUG: tracer la donnée brute ──
+    console.log("TRADES (from state):", trades);
+
+    // ── Étape 1: normalisation explicite ticker → symbol ──
+    const normalized = trades.map((t) => {
       const sym = t.symbol || t.ticker || "UNKNOWN";
       const act = (t.action || t.type || "BUY").toUpperCase();
-
-      if (!map[sym]) {
-        map[sym] = { symbol: sym, BUY: 0, SELL: 0 };
-      }
-      if (act === "BUY") map[sym].BUY += 1;
-      else if (act === "SELL") map[sym].SELL += 1;
-      else {
-        map[sym][act] = (map[sym][act] || 0) + 1;
-      }
+      console.log(`  → Normalized: symbol=${sym}, action=${act}`);
+      return { symbol: sym, action: act };
     });
+    console.log("NORMALIZED:", normalized);
 
-    const result = Object.values(map);
-    console.log("Bar chart data built:", result);
+    // ── Étape 2: groupement par symbole avec comptage BUY/SELL ──
+    const grouped = {};
+    normalized.forEach((t) => {
+      if (!t.symbol || t.symbol === "UNKNOWN") return;
+      if (!grouped[t.symbol]) {
+        grouped[t.symbol] = { symbol: t.symbol, BUY: 0, SELL: 0 };
+      }
+      if (t.action === "BUY") grouped[t.symbol].BUY += 1;
+      else if (t.action === "SELL") grouped[t.symbol].SELL += 1;
+    });
+    console.log("GROUPED:", grouped);
 
-    // ── FALLBACK: si aucune donnée réelle, afficher données de démonstration ──
-    if (result.length === 0) {
+    // ── Étape 3: construction du chart data ──
+    const chartData = Object.values(grouped);
+    console.log("CHART DATA:", chartData);
+
+    // ── FALLBACK demo si aucune donnée réelle ──
+    if (chartData.length === 0) {
       console.warn(
         "No real trades data — showing demo data for chart visibility",
       );
@@ -218,7 +228,7 @@ export default function Charts({ onExpired }) {
       ];
     }
 
-    return result;
+    return chartData;
   };
 
   // ── Données Pie Chart : signaux prédictions ──
