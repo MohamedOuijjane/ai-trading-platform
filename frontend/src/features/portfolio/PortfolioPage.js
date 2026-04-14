@@ -1,143 +1,221 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import portfolioApi from '../../api/portfolio.api';
+import React, { useState, useEffect } from "react";
+import portfolioApi from "../../api/portfolio.api";
 
-/**
- * PortfolioPage Component
- * Displays real-time user portfolio state from the backend.
- * Features: Automatic data fetching, P&L calculations, and history tracking.
- */
 const PortfolioPage = () => {
-  const [portfolio, setPortfolio] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  /**
-   * Fetches fresh portfolio data from the backend.
-   * Defined with useCallback to allow safe inclusion in dependency arrays if needed.
-   */
-  const fetchPortfolio = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await portfolioApi.getPortfolio();
-      // Normalize data to ensure default arrays for positions and history
-      setPortfolio({
-        balance: data.balance || 0,
-        pnl: data.pnl || 0,
-        winRate: data.winRate || 0,
-        positions: data.positions || [],
-        history: data.history || [],
-      });
-    } catch (err) {
-      console.error('[Portfolio Fetch Error]:', err);
-      setError(err.message || 'Unable to load portfolio. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      setLoading(true);
+      try {
+        const result = await portfolioApi.getPortfolio();
+        setData(result);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPortfolio();
   }, []);
 
-  // Fetch data on initial component mount
-  useEffect(() => {
-    fetchPortfolio();
-  }, [fetchPortfolio]);
-
   if (loading) {
-    return <div className="loading-state"><h3>Updating portfolio data...</h3></div>;
-  }
-
-  if (error) {
     return (
-      <div className="error-state" style={{ color: 'red', padding: '20px' }}>
-        <h3>Error Loading Portfolio</h3>
-        <p>{error}</p>
-        <button onClick={fetchPortfolio}>Retry Connection</button>
+      <div className="flex items-center justify-center py-24">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-trading-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-trading-muted">Loading portfolio...</p>
+        </div>
       </div>
     );
   }
 
-  // Handle case where portfolio is empty
-  const hasPositions = portfolio && portfolio.positions.length > 0;
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+          <p className="text-red-400 font-medium">Failed to load portfolio</p>
+          <p className="text-sm text-trading-muted mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const positions = data?.positions || [];
+  const totalValue = data?.balance || 0;
+  const totalPnL = data?.pnl || 0;
+  const pnlPct =
+    totalValue > 0 ? ((totalPnL / totalValue) * 100).toFixed(2) : "0.00";
 
   return (
-    <div className="portfolio-container">
-      <h1>Investment Portfolio</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">My Portfolio</h1>
+        <p className="text-sm text-trading-muted mt-1">
+          Your current holdings and performance
+        </p>
+      </div>
 
-      {/* --- Section 1: Financial Summary --- */}
-      <section className="summary-card" style={{ display: 'flex', gap: '30px', padding: '20px', backgroundColor: '#f4f4f4', borderRadius: '10px' }}>
-        <div>
-          <label>Available Balance</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-            ${portfolio.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card">
+          <p className="stat-label">Total Balance</p>
+          <p className="text-2xl font-bold text-white mt-1">
+            $
+            {totalValue.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
         </div>
-        <div>
-          <label>Total Profit/Loss</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold', color: portfolio.pnl >= 0 ? 'green' : 'red' }}>
-            {portfolio.pnl >= 0 ? '+' : ''}${portfolio.pnl.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-          </div>
+        <div className="card">
+          <p className="stat-label">Total P&L</p>
+          <p
+            className={`text-2xl font-bold mt-1 ${totalPnL >= 0 ? "text-trading-green" : "text-trading-red"}`}
+          >
+            {totalPnL >= 0 ? "+" : ""}
+            {totalPnL.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </p>
         </div>
-        <div>
-          <label>AI Win Rate</label>
-          <div style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>
-            {portfolio.winRate}%
-          </div>
+        <div className="card">
+          <p className="stat-label">Return</p>
+          <p
+            className={`text-2xl font-bold mt-1 ${parseFloat(pnlPct) >= 0 ? "text-trading-green" : "text-trading-red"}`}
+          >
+            {parseFloat(pnlPct) >= 0 ? "+" : ""}
+            {pnlPct}%
+          </p>
         </div>
-      </section>
+      </div>
 
-      {/* --- Section 2: Active Positions --- */}
-      <section className="positions-list" style={{ marginTop: '40px' }}>
-        <h2>Active Asset Positions</h2>
-        {!hasPositions ? (
-          <p>No active positions. Use the Trade page to open your first position.</p>
+      <div className="card">
+        <h3 className="section-title">Positions</h3>
+        {positions.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-14 h-14 rounded-full bg-trading-accent/10 flex items-center justify-center mx-auto mb-3">
+              <svg
+                className="w-7 h-7 text-trading-accent"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+            <p className="text-sm text-trading-muted">No open positions yet.</p>
+            <p className="text-xs text-trading-muted mt-1">
+              Execute a trade to see your holdings here.
+            </p>
+          </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}>
-                <th>Ticker</th>
-                <th>Quantity</th>
-                <th>Avg. Entry</th>
-                <th>Current Price</th>
-                <th>P&L</th>
-              </tr>
-            </thead>
-            <tbody>
-              {portfolio.positions.map((pos) => {
-                const currentPnL = (pos.current - pos.entry) * pos.quantity;
-                return (
-                  <tr key={pos.ticker} style={{ borderBottom: '1px solid #eee', height: '45px' }}>
-                    <td style={{ fontWeight: 'bold' }}>{pos.ticker}</td>
-                    <td>{pos.quantity}</td>
-                    <td>${pos.entry.toLocaleString()}</td>
-                    <td>${pos.current.toLocaleString()}</td>
-                    <td style={{ color: currentPnL >= 0 ? 'green' : 'red', fontWeight: 'bold' }}>
-                      {currentPnL >= 0 ? '+' : ''}${currentPnL.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-trading-border">
+                  <th className="text-left text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    Asset
+                  </th>
+                  <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    Qty
+                  </th>
+                  <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    Avg Price
+                  </th>
+                  <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    Current
+                  </th>
+                  <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    P&L
+                  </th>
+                  <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">
+                    Return
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((pos) => {
+                  const p = parseFloat(pos.avg_entry_price) || 0;
+                  const pnl = parseFloat(pos.unrealized_pnl || 0);
+                  const pnlPct = p > 0 ? ((pnl / p) * 100).toFixed(2) : "0.00";
+                  return (
+                    <tr key={pos.symbol} className="table-row">
+                      <td className="table-cell">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-trading-accent/20 flex items-center justify-center text-xs font-bold text-trading-accent">
+                            {pos.symbol.slice(0, 2)}
+                          </div>
+                          <span className="font-medium text-white">
+                            {pos.symbol}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="table-cell text-right font-mono text-trading-text">
+                        {parseFloat(pos.quantity).toFixed(4)}
+                      </td>
+                      <td className="table-cell text-right font-mono text-trading-muted">
+                        ${p.toFixed(2)}
+                      </td>
+                      <td className="table-cell text-right font-mono text-white">
+                        ${parseFloat(pos.current_price || 0).toFixed(2)}
+                      </td>
+                      <td
+                        className={`table-cell text-right font-mono font-semibold ${pnl >= 0 ? "text-trading-green" : "text-trading-red"}`}
+                      >
+                        {pnl >= 0 ? "+" : ""}
+                        {pnl.toFixed(2)}
+                      </td>
+                      <td
+                        className={`table-cell text-right font-mono font-semibold ${pnl >= 0 ? "text-trading-green" : "text-trading-red"}`}
+                      >
+                        {pnl >= 0 ? "+" : ""}
+                        {pnlPct}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </div>
 
-      {/* --- Section 3: Trade Log --- */}
-      <section className="trade-history" style={{ marginTop: '40px' }}>
-        <h2>Recent Activity Log</h2>
-        {portfolio.history.length === 0 ? (
-          <p>No history recorded yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {portfolio.history.map((item, idx) => (
-              <li key={idx} style={{ padding: '10px', borderBottom: '1px dashed #ccc' }}>
-                <span style={{ fontWeight: 'bold', color: item.action === 'BUY' ? 'blue' : 'orange' }}>
-                  {item.action}
-                </span> 
-                {' '} {item.ticker} | Date: {new Date(item.date).toLocaleDateString()}
-              </li>
+      {data?.history && data.history.length > 0 && (
+        <div className="card">
+          <h3 className="section-title">Recent Activity</h3>
+          <div className="space-y-2">
+            {data.history.slice(0, 5).map((h, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between py-2 border-b border-trading-border last:border-0"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-2 h-2 rounded-full ${h.action === "BUY" ? "bg-trading-green" : "bg-trading-red"}`}
+                  />
+                  <span className="text-sm font-medium text-white">
+                    {h.symbol}
+                  </span>
+                  <span className="text-xs text-trading-muted">{h.action}</span>
+                </div>
+                <span className="text-xs text-trading-muted">
+                  {new Date(h.executed_at).toLocaleDateString()}
+                </span>
+              </div>
             ))}
-          </ul>
-        )}
-      </section>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

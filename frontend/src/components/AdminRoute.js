@@ -2,18 +2,18 @@ import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 
-const ProtectedRoute = () => {
+const AdminRoute = () => {
   const { isAuthenticated, isAdmin } = useAuth();
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
 
-  if (isAdmin()) {
-    return <Navigate to="/admin/dashboard" replace />;
+  if (!isAdmin()) {
+    return <Navigate to="/app/dashboard" replace />;
   }
 
   return <Outlet />;
 };
 
-export default ProtectedRoute;
+export default AdminRoute;

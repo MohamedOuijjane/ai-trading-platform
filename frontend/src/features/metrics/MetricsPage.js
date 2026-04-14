@@ -1,220 +1,79 @@
-import React, { useState, useEffect } from "react";
-import metricsApi from "../../api/metrics.api";
+import React, { useState } from 'react';
 
-/**
- * MetricsPage Component
- * Provides observability into ML model performance and historical backtesting.
- * Key metrics: ROI, Win Rate, Accuracy, Precision, Recall.
- */
+const MOCK_METRICS = {
+  total_trades: 0,
+  accuracy: 0,
+  avg_confidence: 0,
+  total_pnl: 0,
+};
+
+const MOCK_RESULTS = [
+  { period: '1D', return_pct: 0, trades: 0 },
+  { period: '1W', return_pct: 0, trades: 0 },
+  { period: '1M', return_pct: 0, trades: 0 },
+];
+
 const MetricsPage = () => {
-  const [metrics, setMetrics] = useState(null);
-  const [backtest, setBacktest] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedTicker, setSelectedTicker] = useState("AAPL");
-
-  /**
-   * Fetches performance and backtest data.
-   */
-  const fetchAllMetrics = async (ticker) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [metricsData, backtestData] = await Promise.all([
-        metricsApi.getModelMetrics(),
-        metricsApi.getBacktest(ticker),
-      ]);
-
-      setMetrics(metricsData);
-      setBacktest(backtestData);
-    } catch (err) {
-      console.error("[Metrics Fetch Error]:", err);
-      setError(err.message || "Failed to load system metrics.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllMetrics(selectedTicker);
-  }, [selectedTicker]);
-
-  if (loading)
-    return (
-      <div className="loading">
-        <h3>Analyzing system performance...</h3>
-      </div>
-    );
-  if (error)
-    return (
-      <div className="error" style={{ color: "red" }}>
-        Error: {error}
-      </div>
-    );
+  const [metrics] = useState(MOCK_METRICS);
+  const [backtestResults] = useState(MOCK_RESULTS);
 
   return (
-    <div className="metrics-container">
-      <h1>System Observability</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Trading Metrics</h1>
+        <p className="text-sm text-trading-muted mt-1">Model performance and backtesting results</p>
+      </div>
 
-      {/* --- Section 1: Model Accuracy & Health --- */}
-      <section className="model-performance" style={{ marginBottom: "40px" }}>
-        <h2>ML Model Performance (Real-time)</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-            gap: "20px",
-          }}
-        >
-          <div
-            style={{
-              padding: "15px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-            }}
-          >
-            <label>Global Accuracy</label>
-            <div style={{ fontSize: "1.5rem", color: "#28a745" }}>
-              {(metrics?.accuracy * 100).toFixed(1)}%
-            </div>
-          </div>
-          <div
-            style={{
-              padding: "15px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-            }}
-          >
-            <label>Precision (Buy)</label>
-            <div style={{ fontSize: "1.5rem" }}>
-              {(metrics?.precision * 100).toFixed(1)}%
-            </div>
-          </div>
-          <div
-            style={{
-              padding: "15px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-            }}
-          >
-            <label>Recall (Buy)</label>
-            <div style={{ fontSize: "1.5rem" }}>
-              {(metrics?.recall * 100).toFixed(1)}%
-            </div>
-          </div>
-          <div
-            style={{
-              padding: "15px",
-              border: "1px solid #ddd",
-              borderRadius: "8px",
-            }}
-          >
-            <label>Total Predictions</label>
-            <div style={{ fontSize: "1.5rem" }}>
-              {metrics?.total_predictions?.toLocaleString()}
-            </div>
-          </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="card">
+          <p className="stat-label">Total Trades</p>
+          <p className="text-2xl font-bold text-white mt-1">{metrics.total_trades}</p>
         </div>
-      </section>
-
-      <hr />
-
-      {/* --- Section 2: Historical Backtesting --- */}
-      <section className="backtesting-results" style={{ marginTop: "40px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h2>Historical Backtesting Results</h2>
-          <select
-            value={selectedTicker}
-            onChange={(e) => setSelectedTicker(e.target.value)}
-            style={{ padding: "5px" }}
-          >
-            <option value="AAPL">AAPL</option>
-            <option value="BTC-USD">BTC-USD</option>
-            <option value="TSLA">TSLA</option>
-            <option value="NVDA">NVDA</option>
-          </select>
+        <div className="card">
+          <p className="stat-label">Accuracy</p>
+          <p className="text-2xl font-bold text-trading-accent mt-1">{metrics.accuracy}%</p>
         </div>
+        <div className="card">
+          <p className="stat-label">Avg Confidence</p>
+          <p className="text-2xl font-bold text-white mt-1">{metrics.avg_confidence}%</p>
+        </div>
+        <div className="card">
+          <p className="stat-label">Total P&L</p>
+          <p className={`text-2xl font-bold mt-1 ${metrics.total_pnl >= 0 ? 'text-trading-green' : 'text-trading-red'}`}>
+            {metrics.total_pnl >= 0 ? '+' : ''}{metrics.total_pnl}%
+          </p>
+        </div>
+      </div>
 
-        {backtest ? (
-          <div
-            style={{
-              marginTop: "20px",
-              padding: "20px",
-              backgroundColor: "#f8f9fa",
-              borderRadius: "10px",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                gap: "30px",
-              }}
-            >
-              <div>
-                <label>Total Return (ROI)</label>
-                <div
-                  style={{
-                    fontSize: "2rem",
-                    fontWeight: "bold",
-                    color: backtest.total_return_pct >= 0 ? "green" : "red",
-                  }}
-                >
-                  {backtest.total_return_pct >= 0 ? "+" : ""}
-                  {backtest.total_return_pct}%
-                </div>
-              </div>
-              <div>
-                <label>Strategy Win Rate</label>
-                <div style={{ fontSize: "2rem", fontWeight: "bold" }}>
-                  {backtest.win_rate_pct}%
-                </div>
-              </div>
-              <div>
-                <label>Max Drawdown</label>
-                <div
-                  style={{
-                    fontSize: "2rem",
-                    fontWeight: "bold",
-                    color: "#dc3545",
-                  }}
-                >
-                  {backtest.max_drawdown_pct}%
-                </div>
-              </div>
-              <div>
-                <label>Trade Count</label>
-                <div style={{ fontSize: "2rem", fontWeight: "bold" }}>
-                  {backtest.total_trades}
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                marginTop: "30px",
-                padding: "15px",
-                borderLeft: "4px solid #007bff",
-                backgroundColor: "white",
-              }}
-            >
-              <strong>Backtest Period:</strong> Last 2 years of daily market
-              data.
-              <br />
-              <strong>Strategy:</strong> LSTM-driven signals with 0.3% threshold
-              filtering.
-            </div>
-          </div>
-        ) : (
-          <p>No backtest data available for {selectedTicker}.</p>
-        )}
-      </section>
+      <div className="card">
+        <h3 className="section-title">Backtesting Results</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-trading-border">
+                <th className="text-left text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">Period</th>
+                <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">Return</th>
+                <th className="text-right text-xs font-semibold text-trading-muted uppercase tracking-wider pb-3">Trades</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backtestResults.map((r) => (
+                <tr key={r.period} className="table-row">
+                  <td className="table-cell font-medium text-white">{r.period}</td>
+                  <td className={`table-cell text-right font-mono font-semibold ${r.return_pct >= 0 ? 'text-trading-green' : 'text-trading-red'}`}>
+                    {r.return_pct >= 0 ? '+' : ''}{r.return_pct}%
+                  </td>
+                  <td className="table-cell text-right font-mono text-trading-muted">{r.trades}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <p className="text-sm text-trading-yellow font-medium">⚠️ Backtesting requires ML service connection</p>
+          <p className="text-xs text-trading-muted mt-1">Connect to the ML service to enable real backtesting results.</p>
+        </div>
+      </div>
     </div>
   );
 };

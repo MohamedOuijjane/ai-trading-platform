@@ -1,22 +1,12 @@
-import apiClient from "./client";
+import { apiClient } from "./client";
 
-/**
- * Metrics & Backtesting API Service
- */
 const metricsApi = {
-  /**
-   * Get ML model performance metrics
-   */
   getModelMetrics: () => {
-    return apiClient("/api/v1/metrics");
+    return apiClient("/api/v1/metrics/");
   },
 
-  /**
-   * Get historical backtest results for a ticker
-   * @param {string} ticker
-   */
   getBacktest: (ticker) => {
-    return apiClient(`/api/v1/backtest/${ticker}`);
+    return apiClient(`/api/v1/backtest/${ticker.toUpperCase()}/`);
   },
 };
 

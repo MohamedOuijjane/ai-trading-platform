@@ -1,14 +1,8 @@
-import apiClient from "./client";
+import { apiClient } from "./client";
 
-/**
- * Portfolio API Service
- */
 const portfolioApi = {
-  /**
-   * Get user portfolio data
-   */
   getPortfolio: () => {
-    return apiClient("/api/v1/portfolio");
+    return apiClient("/api/v1/portfolio/");
   },
 };
 

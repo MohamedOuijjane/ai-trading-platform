@@ -1,34 +1,42 @@
 ================================================================================
-🚀 AI TRADING PLATFORM - COMPLETE PROJECT GUIDE
+AI TRADING PLATFORM - COMPLETE PROJECT GUIDE
 ================================================================================
-LAST UPDATED: 2026-04-14
-SESSION: Full Admin Dashboard restoration, data flow fixes, system audit
+LAST UPDATED: 2026-04-14 (Late Session)
+SESSION: Fixed critical JWT role detection + complete auth pipeline audit
 ================================================================================
 
 1. PROJECT OVERVIEW
 -------------------
-An AI-powered trading platform with a React Admin Dashboard, Django REST API,
+An AI-powered trading platform with a React frontend, Django REST API,
 FastAPI ML inference engine (LSTM), and PostgreSQL database.
 
 Architecture: Microservices (Frontend + Backend + ML Service + DB)
 
 Current State (as of 2026-04-14):
-- ✅ Admin Dashboard fully functional with real data
-- ✅ All 10 sidebar pages wired and rendering
-- ✅ Backend APIs returning real data (trades, predictions, stats)
-- ⚠️  Auto-trade system defined but not wired (flag exists, no UI)
+- ✅ Modern React Router frontend ACTIVE (src/app/App.js + src/features/)
+- ✅ Role-based routing: /admin/* (admin) vs /app/* (client)
+- ✅ JWT auth with role detection from token (is_staff/is_superuser) FIXED
+- ✅ Admin Dashboard (src/pages/*) — wired to /admin/* routes via React Router
+- ✅ Client Trading UI (src/features/*) — wired to /app/* routes with MainLayout
+- ✅ Auto-trade system: predictions auto-execute trades when conditions met
+- ✅ API layer fixed: apiClient properly exported and used by all services
+- ✅ TailwindCSS v3 installed and configured with custom trading theme
+- ✅ Backend APIs returning real data (trades, predictions, portfolio)
+- ✅ Custom JWT token serializer: is_staff + is_superuser NOW in token payload
+- ⚠️  Registration broken: /api/register/ does not exist
+- ⚠️  Metrics page: /app/metrics uses mock data (no real backend)
+- ⚠️  PredictionProxyView is AllowAny — anonymous auto-trade risk
 - ⚠️  Logs pages (Celery, Audit) are mocked/static data
-- ⚠️  ML Models page shows static data (not scanning .keras files)
 
 ================================================================================
 2. TECH STACK & ARCHITECTURE
 ================================================================================
-- FRONTEND:     React 18 + Recharts (Port 3000)  — Admin Dashboard
-- BACKEND:      Django 4 + DRF (Port 8000)       — REST API
-- ML SERVICE:   FastAPI + TensorFlow/Keras (Port 8001) — LSTM inference
+- FRONTEND:     React 18 + React Router v6 (Port 3000)  — src/app/App.js
+- BACKEND:      Django 4 + DRF (Port 8000)              — REST API
+- ML SERVICE:   FastAPI + TensorFlow/Keras (Port 8001)  — LSTM inference
 - DATABASE:     PostgreSQL 15 (Port 5432)
 - BROKER/CACHE: Redis (Port 6379)
-- TASK QUEUE:    Celery
+- TASK QUEUE:   Celery
 
 SERVICE PORTS:
 +--------------+------------+---------------+--------------+
@@ -42,231 +50,478 @@ SERVICE PORTS:
 +--------------+------------+---------------+--------------+
 
 ================================================================================
-3. FRONTEND FILE STRUCTURE (src/pages/)
+3. FRONTEND FILE STRUCTURE
 ================================================================================
-All pages use: useState for local state, inline <style> tags for CSS,
-and fetch() with JWT Bearer auth.
 
-+------------------------+--------------------------------+------------------+
-| File                   | Route Key      | Purpose          | Data Source     |
-+------------------------+----------------+------------------+-----------------+
-| Dashboard.js           | dashboard      | Stats+Charts     | /api/stats/     |
-| Login.js               | —             | JWT Auth         | /api/token/     |
-| Users.js               | users         | User CRUD        | /api/users/     |
-| Trades.js              | trades        | Trade History    | /api/v1/trades/ |
-| MarketPrices.js         | prices        | Live Market Data | /api/v1/market/ |
-| Portfolios.js          | portfolios    | Holdings+Pie     | /api/v1/portfolio/
-| Predictions.js         | predictions   | AI Signals       | /api/v1/predict/|
-| Charts.js              | (inside      | Bar+Pie Charts   | /api/v1/trades/ |
-|                        |  Dashboard)   |                  | /api/v1/predict/|
-| MLModels.js            | ml-models    | Model Health     | /api/v1/ml/models/
-| CeleryLogs.js          | celery-logs  | Task Monitor     | /api/v1/logs/   |
-| AuditLogs.js           | audit-logs   | Security Logs    | /api/v1/logs/   |
-| Settings.js            | settings     | System Config    | /api/v1/settings/|
-| api.js                 | —            | Centralized      | (not widely     |
-|                        |              | fetch helpers    | used)           |
-+------------------------+----------------+------------------+-----------------+
+TWO ARCHITECTURES COEXIST — MODERN IS ACTIVE, LEGACY IS DEAD
 
-Components:
-+------------------------+-----------------------------------------+
-| Sidebar.js            | Navigation component (shared layout)     |
-+------------------------+-----------------------------------------+
+----- MODERN FRONTEND (ACTIVE) — src/app/App.js -----
+Entry point: src/index.js → imports './app/App'
 
-Legacy/Dead Files:
-- AllPages.js    — Old placeholder components (unused)
-- Dashboard.jsx  — Duplicate of Dashboard.js (unused)
+src/app/
+  App.js             — React Router v6, BrowserRouter, route groups
+  routes.js          — ROUTES = { PUBLIC, ADMIN, APP }
+
+src/features/        — Client/Trader UI (modern)
+  auth/
+    LoginPage.js     — JWT login, decodes is_staff from token, role redirect
+    RegisterPage.js  — BROKEN (calls /api/register/ which doesn't exist)
+  dashboard/
+    DashboardPage.js — AI signals, auto-trade banners, execute button
+  portfolio/
+    PortfolioPage.js — User holdings (GET /api/v1/portfolio/)
+  trading/
+    TradePage.js     — Manual trade form (POST /api/v1/trade/)
+  metrics/
+    MetricsPage.js   — BROKEN (mock data, /api/v1/metrics/ missing)
+  settings/
+    SettingsPage.js  — User bot config (GET/PATCH /api/v1/my-config/)
+
+src/hooks/
+  useAuth.js         — login(), logout(), isAuthenticated(), isAdmin(),
+                       getToken() — all via localStorage
+
+src/components/
+  ProtectedRoute.js  — Guards /app/* — checks token exists → /login
+  AdminRoute.js      — Guards /admin/* — checks isAdmin → /app/dashboard
+  layout/
+    MainLayout.js    — Shell: Sidebar (w-64 fixed) + Navbar + <Outlet />
+    Sidebar.js       — Tailwind client sidebar for /app/* routes
+    Navbar.js        — Tailwind top bar with role badge + logout
+
+src/api/
+  client.js          — apiClient() generic fetch + Bearer token + 401 redirect
+                       Named export: export { apiClient }
+                       Also has api{} object (unused by modern features)
+  auth.api.js        — login(), register() [BROKEN]
+  trading.api.js     — getPrediction(), executeTrade()
+  portfolio.api.js   — getPortfolio()
+  metrics.api.js     — getModelMetrics() [BROKEN], getBacktest() [BROKEN]
+
+----- LEGACY FRONTEND (DEAD — NOT IMPORTED) -----
+src/App.js           — State-based routing, old login, UNUSED
+src/pages/           — All 12 old admin pages (USED via /admin/* routes)
+src/pages/Dashboard.jsx — UNUSED (alternate version of Dashboard, not imported)
+src/pages/api.js     — Old login helper (unused)
+src/pages/AllPages.js — Dead placeholder
+
+NOTE: The OLD Sidebar (src/components/Sidebar.js) uses CSS classes like
+.sidebar, .layout, .topbar — used ONLY by src/pages/Dashboard.js.
+The NEW Sidebar (src/components/layout/Sidebar.js) uses Tailwind — used
+ONLY by src/components/layout/MainLayout.js.
+These are completely separate components for separate UI systems.
 
 ================================================================================
-4. BACKEND FILE STRUCTURE
+4. ROUTING STRUCTURE (Modern — ACTIVE)
+================================================================================
+
+src/app/routes.js defines 3 route arrays:
+
+PUBLIC (no guard):
+  /login      → LoginPage
+  /register  → RegisterPage [BROKEN — endpoint missing]
+
+ADMIN (AdminRoute guard — is_staff required):
+  /admin/dashboard    → Dashboard.js  ← src/pages/Dashboard.js (NOT Charts.js)
+  /admin/users        → Users.js
+  /admin/trades       → Trades.js
+  /admin/predictions  → Predictions.js
+  /admin/prices       → MarketPrices.js
+  /admin/portfolios   → Portfolios.js
+  /admin/charts       → Charts.js
+  /admin/ml-models    → MLModels.js
+  /admin/celery-logs  → CeleryLogs.js
+  /admin/audit-logs   → AuditLogs.js
+  /admin/settings     → Settings.js
+
+APP (ProtectedRoute guard — any authenticated user):
+  /app/dashboard  → DashboardPage.js  (AI signals + auto-trade)
+  /app/portfolio  → PortfolioPage.js  (user holdings)
+  /app/trade      → TradePage.js      (manual trade form)
+  /app/metrics    → MetricsPage.js    [BROKEN]
+  /app/settings   → SettingsPage.js   (user bot config)
+
+DEFAULTS:
+  /   → Navigate to /app/dashboard
+  /*  → Navigate to /login
+
+CRITICAL: Admin pages (src/pages/*) use CSS-in-JS <style> blocks. They are
+SELF-CONTAINED — they provide their own sidebar, layout, and styling.
+They must NOT be wrapped inside MainLayout.
+AdminRoute renders them directly as the leaf route element.
+
+================================================================================
+5. AUTHENTICATION PIPELINE (CRITICAL — FIXED)
+================================================================================
+
+BACKEND JWT FLOW (FIXED 2026-04-14):
+1. User submits username + password
+2. POST /api/token/ → CustomTokenObtainPairView (config/serializers.py)
+3. CustomTokenObtainPairSerializer.get_token() adds to payload:
+   - username
+   - is_staff
+   - is_superuser
+4. Returns { access, refresh }
+
+Token payload AFTER FIX:
+{
+  "token_type": "access",
+  "exp": ...,
+  "iat": ...,
+  "jti": ...,
+  "user_id": 1,
+  "username": "admin",        ← ADDED
+  "is_staff": true,          ← ADDED (was missing before!)
+  "is_superuser": true       ← ADDED (was missing before!)
+}
+
+FRONTEND LOGIN FLOW:
+1. authApi.login(username, password) → POST /api/token/
+2. Frontend decodes JWT payload (NO backend call needed):
+   const payload = data.access.split(".")[1]
+   const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+   const isAdmin = !!decoded.is_staff || !!decoded.is_superuser
+3. login(token, { is_staff: isAdmin, username }) stores:
+   - localStorage.access_token = token
+   - localStorage.is_staff = "true" | "false"
+   - localStorage.username = username
+4. Redirect:
+   isAdmin=true  → /admin/dashboard
+   isAdmin=false → /app/dashboard
+
+Logout: clears localStorage, redirects to /login
+
+ROOT CAUSE FIX (2026-04-14 Late Session):
+- Default SimpleJWT TokenObtainPairView only included: token_type, exp, iat, jti, user_id
+- is_staff and is_superuser were NOT in the JWT payload
+- Frontend decoded undefined → every user (including superadmin) → isAdmin=false
+- Admin users were redirected to /app/dashboard instead of /admin/dashboard
+- AdminRoute always redirected admin users to /app/dashboard
+FIX: Created config/serializers.py with CustomTokenObtainPairSerializer
+that overrides get_token() to add is_staff and is_superuser to the token.
+
+================================================================================
+6. BACKEND FILE STRUCTURE
 ================================================================================
 DJANGO APPS:
 
 config/          — Django project settings
-  settings.py    — JWT/SimpleJWT, PostgreSQL, installed apps
-  urls.py        — Root routing: admin/, api/
+  settings.py    — REST_FRAMEWORK with DEFAULT_PERMISSION=IsAdminUser,
+                   SimpleJWT configured, PostgreSQL
+  urls.py        — Root routing: admin/, api/, api/v1/
+  serializers.py — CustomTokenObtainPairSerializer + CustomTokenObtainPairView
+                   (adds is_staff/is_superuser to JWT payload)
 
 trading/         — Core trading business logic
   urls.py        — All /api/v1/* endpoints
-  views.py       — PortfolioView, TradeListView, MarketPricesView, etc.
-  serializers.py  — TradeSerializer, BotConfigSerializer
+  views.py       — PortfolioView, TradeView, TradeListView,
+                   PredictionProxyView (with auto-trade), MarketPricesView
+  serializers.py — TradeSerializer, BotConfigSerializer
   services/
-    prediction_service.py  — ML proxy + adapter + fallback
-    portfolio_service.py   — Trade aggregation per user
-    trade_service.py       — execute_trade() with FIFO PnL (NOT called from UI)
+    prediction_service.py — ML proxy + adapter + fallback
+    portfolio_service.py  — Trade aggregation per user
+    trade_service.py      — execute_trade() with FIFO PnL
 
 administration/  — Admin and system management
   models.py      — Trade, Prediction, BotConfig, SystemSettings
-  views.py       — StatsView, SettingsView, MLModelsView, LogsViews
-  serializers.py — User serializers, SystemSettingsSerializer
-  urls.py        — Administration URL routes
+  views.py       — StatsView, UserListCreateView, UserDetailView,
+                   CeleryLogsView, AuditLogsView, MLModelsView
+  serializers.py — UserSerializer, UserCreateSerializer,
+                   SystemSettingsSerializer
+  urls.py        — /api/stats/, /api/users/
 
 ML_SERVICE/      — FastAPI LSTM inference engine
   main.py        — /api/v1/predict/{ticker} endpoint
 
 ================================================================================
-5. DATABASE MODELS (administration/models.py)
+7. DATABASE MODELS (administration/models.py)
 ================================================================================
-+----------------+--------------------------------------------------+----------------+
-| Model          | Fields                                           | Link           |
-+----------------+--------------------------------------------------+----------------+
-| Trade          | user(FK), symbol, action, price, quantity,       | user FK       |
-|                | profit_loss, confidence, executed_at             |               |
-| Prediction     | symbol, signal, confidence, predicted_price,      | —             |
-|                | actual_price, created_at                         |               |
-| BotConfig      | user(1:1), is_active, min_confidence,           | user FK       |
-|                | max_trade_amount, stop_loss_pct, paper_trading   |               |
-| SystemSettings | trading_enabled, max_trade_amount, risk_level,     | Singleton PK=1 |
-|                | auto_trade, min_confidence, updated_at           |               |
-+----------------+--------------------------------------------------+----------------+
++---------------+--------------------------------------------------+----------------+
+| Model         | Fields                                           | Link           |
++---------------+--------------------------------------------------+----------------+
+| Trade         | user(FK), symbol, action, price, quantity,       | user FK       |
+|               | profit_loss, confidence, executed_at              |               |
+| Prediction    | symbol, signal, confidence, predicted_price,       | —             |
+|               | actual_price, created_at                          |               |
+| BotConfig     | user(1:1), is_active, min_confidence,            | user FK       |
+|               | max_trade_amount, stop_loss_pct, paper_trading    |               |
+| SystemSettings| trading_enabled, max_trade_amount, risk_level,   | Singleton PK=1 |
+|               | auto_trade, min_confidence, updated_at            |               |
++---------------+--------------------------------------------------+----------------+
 
 NOTE: There is NO Portfolio model. Portfolio is computed dynamically by
 PortfolioService.get_user_portfolio(user), which aggregates Trade records.
 
 ================================================================================
-6. API ENDPOINTS (Full List)
+8. API ENDPOINTS (Full List)
 ================================================================================
 AUTH:
-  POST /api/token/              — Obtain JWT (username/password)
+  POST /api/token/              — Obtain JWT (CUSTOM serializer — has is_staff)
   POST /api/token/refresh/       — Refresh JWT access token
 
 TRADING (trading/urls.py):
   GET  /api/v1/trades/           — List trades (admin=ALL, user=OWN)
   POST /api/v1/trade/            — Execute a trade (via TradeService)
-  GET  /api/v1/portfolio/       — User portfolio (aggregated trades)
-  GET  /api/v1/predictions/     — List all predictions
-  POST /api/v1/predict/{ticker}/ — Request ML prediction (proxied to ML svc)
-  GET  /api/v1/market/prices/   — Live market prices (with ML fallback)
+  GET  /api/v1/portfolio/        — User portfolio (aggregated trades)
+  GET  /api/v1/predictions/      — List all predictions [NOT user-filtered]
+  POST /api/v1/predict/{ticker}/ — Request ML prediction + AUTO-TRADE ⚠️ AllowAny
+  GET  /api/v1/market/prices/    — Live market prices (with ML fallback)
   GET  /api/v1/health/           — Health check
-  GET  /api/v1/my-config/       — Current user's BotConfig
+  GET  /api/v1/my-config/        — Current user's BotConfig
   GET  /api/v1/settings/         — SystemSettings (GET/PATCH)
-
-ADMINISTRATION (administration/urls.py):
-  GET  /api/users/               — List all users
-  POST /api/users/               — Create user
-  GET  /api/users/{id}/          — User detail
-  DELETE /api/users/{id}/        — Delete user
-  POST /api/users/{id}/toggle/   — Toggle active status
-  GET  /api/stats/               — Dashboard aggregation stats
-  GET  /api/v1/ml/models/        — ML model status (MOCKED)
   GET  /api/v1/logs/celery/      — Celery task logs (MOCKED)
   GET  /api/v1/logs/audit/       — Audit logs (MOCKED)
-  GET|PATCH /api/v1/settings/    — System settings (admin only)
+  GET  /api/v1/ml/models/         — ML model status (MOCKED)
+
+ADMINISTRATION (administration/urls.py):
+  GET  /api/users/               — List all users [IsAdminUser]
+  POST /api/users/               — Create user [IsAdminUser]
+  GET  /api/users/{id}/          — User detail [IsAdminUser]
+  DELETE /api/users/{id}/       — Delete user [IsAdminUser]
+  POST /api/users/{id}/toggle/  — Toggle active status [IsAdminUser]
+  GET  /api/stats/              — Dashboard aggregation stats [IsAdminUser]
 
 ================================================================================
-7. KEY SERVICE FLOWS
+9. KEY SERVICE FLOWS
 ================================================================================
 
-A) ML PREDICTION FLOW:
+A) ML PREDICTION + AUTO-TRADE FLOW:
 User → GET /api/v1/predict/{TICKER}/
-  → PredictionProxyView (Django)
+  → PredictionProxyView (permission=AllowAny ⚠️)
     → PredictionService.get_prediction()
       → GET http://localhost:8001/api/v1/predict/{TICKER} (ML Service)
-        → ML Service: fetches yfinance data → runs LSTM → returns JSON
-      ← normalize_ml_response() (adapter layer)
-      → Prediction.objects.create() (saved to DB for audit)
+      → Prediction.objects.create() (saved for audit)
     ← { ticker, signal, confidence, price, valid, latency_ms }
-  ← Response to frontend
-User sees: "BUY" or "SELL" or "HOLD" signal with confidence bar
+    → _maybe_auto_trade(request, prediction, result):
+        IF settings.auto_trade == True
+        AND signal != "HOLD"
+        AND confidence >= settings.min_confidence
+        AND BotConfig.is_active == True
+        AND BotConfig.paper_trading == False
+        THEN:
+          TradeService.execute_trade(user, ticker, signal, qty)
+          → Trade.objects.create()
+          result["auto_executed"] = True
+          result["trade_id"] = trade.id
+        ELSE:
+          result["auto_trade_skipped"] = "<reason>"
+  ← Response with { ticker, signal, confidence, price, auto_executed,
+                    trade_id, auto_trade_skipped }
 
 B) PORTFOLIO AGGREGATION:
 User → GET /api/v1/portfolio/
   → PortfolioService.get_user_portfolio(user)
-    → Trade.objects.filter(user=user)  (user's own trades only)
-    → Groups by symbol
-    → Calculates: quantity, avg_entry, current_price (via ML), unrealized_pnl
+    → Trade.objects.filter(user=user)
+    → Groups by symbol, calculates avg_entry, unrealized_pnl
     → Returns: { balance, pnl, positions[], history[] }
   ← { balance, pnl, positions, history }
-User sees: Holdings table + pie chart + balance
 
-C) TRADE EXECUTION (defined but not called from UI):
+C) MANUAL TRADE EXECUTION:
 User → POST /api/v1/trade/ { ticker, action, quantity }
   → TradeService.execute_trade(user, ticker, action, quantity)
     → PredictionService.get_prediction(ticker) (current price)
-    → Validates: balance, max_trade_amount, position qty
-    → Calculates FIFO PnL for SELL
-    → Trade.objects.create() (saved to DB)
+    → Validates balance, max_trade_amount
+    → Trade.objects.create()
   ← Trade object returned
-NOTE: This endpoint EXISTS in the backend but has NO UI trigger in the
-frontend. The "Execute Trade" button is not implemented.
 
 D) MARKET PRICES FLOW:
 User → GET /api/v1/market/prices/
-  → MarketPricesView
-    → Loops 8 symbols (BTC, ETH, TSLA, AAPL, NVDA, MSFT, GOOGL, AMZN)
-    → Calls PredictionService.get_prediction() for each
-    → If ML service is DOWN: returns STATIC FALLBACK MOCK DATA
+  → MarketPricesView (permission=AllowAny)
+    → Loops 8 symbols → PredictionService.get_prediction()
+    → If ML down: returns STATIC FALLBACK MOCK DATA
   ← Array of { symbol, price, change, change_pct, high, low, volume }
-User sees: Price cards with up/down indicators
 
 ================================================================================
-8. AUTHENTICATION & AUTHORIZATION
+10. AUTHENTICATION & AUTHORIZATION
 ================================================================================
 - JWT via SimpleJWT (rest_framework_simplejwt)
-- Token stored in localStorage on frontend (access + refresh)
+- Token stored in localStorage on frontend (access_token)
+- Role (is_staff/is_superuser) decoded client-side from JWT payload
+- Stored in localStorage as string: "true" | "false"
 - Every API call includes: Authorization: Bearer <token>
 - Admin users (is_superuser or is_staff): see ALL trades
 - Regular users: see only their own trades (filtered by user FK)
 
-JWT ENDPOINTS:
-  POST /api/token/        → { access, refresh }
-  POST /api/token/refresh/ → { access }
+JWT CUSTOM SERIALIZER (config/serializers.py):
+  class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+      def get_token(self, user):
+          token = super().get_token(user)
+          token["username"] = user.username
+          token["is_staff"] = user.is_staff
+          token["is_superuser"] = user.is_superuser
+          return token
+
+  class CustomTokenObtainPairView(TokenObtainPairView):
+      serializer_class = CustomTokenObtainPairSerializer
+
+  Registered in config/urls.py as the /api/token/ endpoint.
+
+ROLE DETECTION (client-side):
+  const payload = data.access.split(".")[1]
+  const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+  const isAdmin = !!decoded.is_staff || !!decoded.is_superuser
 
 ================================================================================
-9. FRONTEND STATE MANAGEMENT
-================================================================================
-- useState only (no Redux, no Context API for global state)
-- Each page manages its own local state
-- Token stored in localStorage (access_token, refresh_token, username)
-- getHeaders() helper attaches Bearer token to every fetch()
-
-================================================================================
-10. CRITICAL FIXES APPLIED (Session 2026-04-14)
+11. API LAYER — FIXES APPLIED (Session 2026-04-14)
 ================================================================================
 
-LAYOUT & NAVIGATION FIXES:
-✅ Fixed sidebar state: moved currentPage from Dashboard.js to App.js
-✅ Removed dead code: renderContent(), ComingSoon components from Dashboard.js
-✅ Restored Charts.js integration into Dashboard.js grid
-✅ Fixed page routing: all 10 pages now accessible via sidebar
-✅ Cleaned CSS collisions: removed @import/font resets from sub-pages
-✅ Updated Sidebar config: all items now have valid `page` keys
+CRITICAL FIX: apiClient not exported
+- Problem: client.js only exported named { api } — no default export
+- All API files used: import apiClient from "./client" → undefined
+- Fix: Added "export { apiClient }" as named export to client.js
+- Affected: auth.api.js, trading.api.js, portfolio.api.js, metrics.api.js
 
-DATA FLOW FIXES:
-✅ Fixed API path: /api/trades/ → /api/v1/trades/
-✅ Fixed API path: /api/portfolio/ → /api/v1/portfolio/
-✅ Fixed API path: /api/ml/models/ → /api/v1/ml/models/
-✅ Fixed API path: /api/logs/celery/ → /api/v1/logs/celery/
-✅ Fixed API path: /api/logs/audit/ → /api/v1/logs/audit/
-✅ Fixed Trade model import in trading/views.py (was causing 500 error)
-✅ Fixed TradeListView: admin users see ALL trades (not just own)
-✅ Fixed StatsView: returns structured recent_activity with correct fields
-✅ Fixed MarketPricesView: 401 now properly calls onExpired() + resets loading
-✅ Fixed MarketPricesView: fallback mock data when ML service is down
+CRITICAL FIX: 401 redirect wrong path
+- Problem: client.js did window.location.href = "/" on 401
+- Fix: Changed to window.location.href = "/login"
 
-CHARTS FIXES:
-✅ Charts.js: Added explicit ticker/symbol normalization
-✅ Charts.js: Fixed grouped object to track BUY and SELL counts separately
-✅ Charts.js: Added demo data fallback when trades array is empty
-✅ Charts.js: Added console.debug pipeline: RAW → NORMALIZED → GROUPED → CHART
+CRITICAL FIX: trailing slash mismatch
+- Problem: executeTrade called /api/v1/trade (no trailing slash)
+- Fix: Changed to /api/v1/trade/ (with trailing slash)
 
-DATABASE & BACKEND:
-✅ Created SystemSettings model + serializer + view + URL
-✅ Created Settings.js frontend page with full CRUD UI
-✅ Implemented GET/PATCH /api/v1/settings/ endpoint
-✅ Seeded 10 real trades in database (BTC, ETH, TSLA, NVDA, AAPL, MSFT, GOOGL)
-✅ Wired MLModelsView, CeleryLogsView, AuditLogsView into /api/v1/ routes
-✅ Fixed PortfolioService: uses correct field (positions not portfolio)
-✅ Added demo fallback in PortfolioService when current_price unavailable
+FIXED FILES:
+✅ src/api/client.js       — Added export { apiClient }, 401 → /login
+✅ src/api/auth.api.js     — Fixed import to { apiClient }
+✅ src/api/trading.api.js  — Fixed import + trailing slash
+✅ src/api/portfolio.api.js — Fixed import + trailing slash
+✅ src/api/metrics.api.js  — Fixed import
 
 ================================================================================
-11. CURRENT LIMITATIONS (NOT IMPLEMENTED)
+12. ROLE-BASED ROUTING — IMPLEMENTED (Session 2026-04-14)
 ================================================================================
-⚠️ MANUAL TRADE EXECUTION: TradeService.execute_trade() exists in backend
-   but there is NO "Execute Trade" button in the frontend UI. User must use
-   Postman or curl to trigger a trade.
 
-⚠️ AUTO-TRADE SYSTEM: SystemSettings.auto_trade flag exists but has no
-   effect. No Celery task reads this flag to auto-execute trades.
+New files created:
+✅ src/hooks/useAuth.js           — Added isAdmin(), login(token, userData)
+✅ src/components/AdminRoute.js   — Guards /admin/* — isAdmin check
+✅ src/components/ProtectedRoute.js — Guards /app/* — auth check
+
+useAuth.js now exposes:
+  login(token, userData)     — stores token + is_staff in localStorage
+  logout()                   — clears localStorage
+  isAuthenticated()           — checks token exists
+  isAdmin()                  — checks is_staff === "true"
+  getToken()                 — returns token
+
+LoginPage.js redirect logic:
+  isAdmin=true  → navigate("/admin/dashboard")
+  isAdmin=false → navigate("/app/dashboard")
+
+AdminRoute.js guard:
+  No token  → /login
+  Not admin → /app/dashboard
+  Admin     → renders page
+
+ProtectedRoute.js guard:
+  No token → /login
+  Has token → renders page (admin AND client users)
+
+================================================================================
+13. JWT ROLE DETECTION FIX — ROOT CAUSE (2026-04-14 Late Session)
+================================================================================
+
+PROBLEM:
+- Default SimpleJWT TokenObtainPairView only included: token_type, exp, iat, jti, user_id
+- is_staff and is_superuser were NOT in the JWT payload
+- Frontend decoded undefined → every user (including superadmin) → isAdmin=false
+- Admin users were redirected to /app/dashboard instead of /admin/dashboard
+- AdminRoute always redirected admin users to /app/dashboard
+
+FIXED FILES:
+✅ backend/config/serializers.py — CREATED
+  - CustomTokenObtainPairSerializer: adds username, is_staff, is_superuser
+  - CustomTokenObtainPairView: uses the custom serializer
+✅ backend/config/urls.py — MODIFIED
+  - /api/token/ now uses CustomTokenObtainPairView.as_view()
+
+VERIFICATION (Python shell):
+  import requests, json, base64
+  resp = requests.post('http://127://127.0.0.1:8000/api/token/',
+                       data={'username': 'admin', 'password': 'admin123'})
+  payload = json.loads(base64.b64decode(resp.json()['access'].split('.')[1]+'=='))
+  # payload now contains: is_staff=True, is_superuser=True, username='admin'
+
+IMPORTANT: Existing sessions are INVALID — users must re-login to get
+tokens with the new is_staff/is_superuser claims.
+
+================================================================================
+14. AUTO-TRADE SYSTEM — IMPLEMENTED (Session 2026-04-14)
+================================================================================
+
+Backend: PredictionProxyView._maybe_auto_trade()
+  Checks (in order):
+    1. SystemSettings.auto_trade == True
+    2. signal != "HOLD"
+    3. confidence >= SystemSettings.min_confidence (default 0.75)
+    4. BotConfig.is_active == True for user
+    5. BotConfig.paper_trading == False for user
+  If all pass:
+    quantity = BotConfig.max_trade_amount / prediction["price"]
+    trade = TradeService.execute_trade(user, ticker, signal, qty)
+    result["auto_executed"] = True
+    result["trade_id"] = trade.id
+  If any fail:
+    result["auto_trade_skipped"] = "<reason>"
+
+Response fields added:
+  auto_executed: boolean
+  trade_id: number (if executed)
+  auto_trade_skipped: string | null (reason if skipped)
+  auto_trade_error: string (if exception)
+
+Frontend: DashboardPage.js (features/dashboard/)
+  After prediction response:
+    auto_executed=true  → Green banner "Trade Executed Automatically"
+    auto_trade_skipped → Yellow banner + reason + "Execute [SIGNAL] Trade Manually" button
+    auto_trade_error   → Red banner with error message
+
+Controlling auto-trade:
+  SystemSettings.auto_trade = True/False (admin panel /admin/settings)
+  SystemSettings.min_confidence = 0.0–1.0
+  BotConfig.is_active = True/False (per user)
+  BotConfig.paper_trading = True/False (per user)
+
+================================================================================
+15. USERS CREATED
+================================================================================
+admin     — is_staff=True, is_superuser=True  (full access)
+client1   — is_staff=False, is_superuser=False (client dashboard only)
+          — password: 123456
+
+================================================================================
+16. CRITICAL ISSUES (NEEDS FIX)
+================================================================================
+🔴 CRITICAL (breaks system):
+  1. POST /api/register/ does not exist — RegisterPage always 404s
+  2. GET /api/v1/metrics/ does not exist — /app/metrics always fails
+  3. GET /api/v1/backtest/{ticker}/ does not exist — backtesting fails
+
+🟠 HIGH (wrong behavior):
+  4. PredictionProxyView is AllowAny — anonymous users can trigger predictions
+     (auto-trade is blocked by _maybe_auto_trade checks, but prediction is not)
+  5. GET /api/v1/predictions/ returns ALL predictions — not filtered by user
+     (client users can see all predictions, not just their own)
+  6. Refresh tokens do NOT include is_staff/is_superuser
+     (only access tokens have the custom claims; refresh tokens are standard)
+     Workaround: full re-login required when access token expires
+
+🟡 MEDIUM (architecture):
+  7. Old frontend (src/App.js + src/pages/Dashboard.jsx) is dead code
+  8. client.js api{} object unused by modern features
+  9. /admin/dashboard and /admin/charts are separate routes but share Charts.js
+  10. is_staff stored as string "true"/"false" in localStorage (type confusion)
+
+================================================================================
+17. CURRENT LIMITATIONS
+================================================================================
+⚠️ MANUAL TRADE EXECUTION: TradeService.execute_trade() exists and is now
+   callable via TradePage.js at /app/trade. UI form accepts ticker,
+   action, quantity and calls POST /api/v1/trade/
+
+⚠️ AUTO-TRADE SYSTEM: Now IMPLEMENTED but only works when:
+   - SystemSettings.auto_trade = True
+   - Prediction confidence >= min_confidence
+   - BotConfig.is_active = True
+   - BotConfig.paper_trading = False
 
 ⚠️ LOGS ARE MOCKED: CeleryLogsView and AuditLogsView return hardcoded
    static arrays, not real Celery task results or Django LogEntry records.
@@ -280,17 +535,11 @@ DATABASE & BACKEND:
 ⚠️ PORTFOLIO CACHING: PortfolioService calls PredictionService for every
    ticker on every page load. No Redis caching implemented.
 
-⚠️ PREDICTION DOES NOT AUTO-TRADE: A prediction signal (BUY/SELL) is
-   displayed but does not trigger a trade. Operator must manually act.
-
 ================================================================================
-12. HOW TO RUN (LOCAL)
+18. HOW TO RUN (LOCAL)
 ================================================================================
 A) PREREQUISITES:
-   - Python 3.10+
-   - Node.js 18+
-   - PostgreSQL 15 running on port 5432
-   - Redis running on port 6379 (for Celery)
+   - Python 3.10+, Node.js 18+, PostgreSQL 15, Redis
 
 B) BACKEND:
    cd backend
@@ -311,33 +560,21 @@ C) ML SERVICE:
 D) FRONTEND:
    cd frontend
    npm install
+   npm install react-router-dom  (if not already installed)
    npm start
 
-E) SEED TEST DATA:
+E) CREATE TEST USERS:
    python manage.py shell -c "
-   from administration.models import Trade
    from django.contrib.auth.models import User
-   from decimal import Decimal
-   user = User.objects.first()
-   trades = [
-       ('BTC-USD','BUY',Decimal('0.10'),Decimal('68000.00'),0.85),
-       ('BTC-USD','SELL',Decimal('0.05'),Decimal('71000.00'),0.90),
-       ('ETH-USD','BUY',Decimal('2.0'),Decimal('2400.00'),0.78),
-       ('TSLA','BUY',Decimal('10.0'),Decimal('180.00'),0.65),
-       ('NVDA','BUY',Decimal('5.0'),Decimal('850.00'),0.92),
-       ('AAPL','BUY',Decimal('15.0'),Decimal('170.00'),0.70),
-       ('BTC-USD','BUY',Decimal('0.02'),Decimal('69500.00'),0.88),
-       ('ETH-USD','SELL',Decimal('1.0'),Decimal('2650.00'),0.82),
-       ('MSFT','BUY',Decimal('8.0'),Decimal('420.00'),0.75),
-       ('GOOGL','BUY',Decimal('12.0'),Decimal('150.00'),0.68),
-   ]
-   for s,a,q,p,c in trades:
-       Trade.objects.create(user=user,symbol=s,action=a,quantity=q,price=p,confidence=c)
-   print(f'Trades: {Trade.objects.count()}')
+   User.objects.create_user(username='admin', password='password',
+                            is_staff=True, is_superuser=True)
+   User.objects.create_user(username='client1', password='123456',
+                            is_staff=False, is_superuser=False)
+   print('Users created')
    "
 
 ================================================================================
-13. ENVIRONMENT VARIABLES (.env)
+19. ENVIRONMENT VARIABLES (.env)
 ================================================================================
 DEBUG=True
 SECRET_KEY=<your-secret-key>
@@ -348,31 +585,4 @@ POSTGRES_HOST=localhost
 REDIS_URL=redis://localhost:6379
 ML_SERVICE_URL=http://localhost:8001
 
-================================================================================
-14. TESTING API ENDPOINTS (curl examples)
-================================================================================
-A) LOGIN:
-   curl -X POST http://127.0.0.1:8000/api/token/ \
-     -H "Content-Type: application/json" \
-     -d '{"username":"admin","password":"password"}'
-
-B) GET TRADES (with token):
-   TOKEN=<access_token>
-   curl http://127.0.0.1:8000/api/v1/trades/ \
-     -H "Authorization: Bearer $TOKEN"
-
-C) GET STATS:
-   curl http://127.0.0.1:8000/api/stats/ \
-     -H "Authorization: Bearer $TOKEN"
-
-D) GET PORTFOLIO:
-   curl http://127.0.0.1:8000/api/v1/portfolio/ \
-     -H "Authorization: Bearer $TOKEN"
-
-E) GET MARKET PRICES:
-   curl http://127.0.0.1:8000/api/v1/market/prices/
-
-================================================================================
-GUIDE GENERATED: 2026-04-14
-LAST MAJOR SESSION: Admin Dashboard full restoration + data flow fixes
 ================================================================================

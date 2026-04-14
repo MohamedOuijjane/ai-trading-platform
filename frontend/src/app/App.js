@@ -1,31 +1,57 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ROUTES } from "./routes";
 import ProtectedRoute from "../components/ProtectedRoute";
+import AdminRoute from "../components/AdminRoute";
+import MainLayout from "../components/layout/MainLayout";
+import useAuth from "../hooks/useAuth";
 
-/**
- * Main Application Routing Component
- */
+const SessionGuard = ({ children }) => {
+  const { isAuthenticated, isAdmin } = useAuth();
+  const location = useLocation();
+
+  useEffect(() => {
+    const path = location.pathname;
+
+    if (!isAuthenticated()) return;
+
+    if (path.startsWith("/app/") && isAdmin()) {
+      window.location.href = "/admin/dashboard";
+    } else if (path.startsWith("/admin/") && !isAdmin()) {
+      window.location.href = "/app/dashboard";
+    }
+  }, [location.pathname, isAuthenticated, isAdmin]);
+
+  return children;
+};
+
 const App = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public Routes */}
-        {ROUTES.PUBLIC.map(({ path, component: Component }) => (
-          <Route key={path} path={path} element={<Component />} />
-        ))}
-
-        {/* Private Routes (Wrapped in ProtectedRoute) */}
-        <Route element={<ProtectedRoute />}>
-          {ROUTES.PRIVATE.map(({ path, component: Component }) => (
+      <SessionGuard>
+        <Routes>
+          {ROUTES.PUBLIC.map(({ path, component: Component }) => (
             <Route key={path} path={path} element={<Component />} />
           ))}
-        </Route>
 
-        {/* Default Redirects */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+          <Route element={<AdminRoute />}>
+            {ROUTES.ADMIN.map(({ path, component: Component }) => (
+              <Route key={path} path={path} element={<Component />} />
+            ))}
+          </Route>
+
+          <Route element={<ProtectedRoute />}>
+            <Route element={<MainLayout />}>
+              {ROUTES.APP.map(({ path, component: Component }) => (
+                <Route key={path} path={path} element={<Component />} />
+              ))}
+            </Route>
+          </Route>
+
+          <Route path="/" element={<Navigate to="/app/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </SessionGuard>
     </BrowserRouter>
   );
 };
