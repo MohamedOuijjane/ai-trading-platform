@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import Users from "./Users";
+import Sidebar from "../components/Sidebar";
+import Charts from "./Charts";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -26,124 +27,164 @@ const styles = `
 
   body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
 
-  .layout { display: flex; height: 100vh; overflow: hidden; }
+  .layout { display: flex; height: 100vh; overflow: hidden; background: var(--bg); }
 
   .sidebar {
-    width: 240px; min-width: 240px;
+    width: 260px; min-width: 260px;
     background: var(--sidebar-bg);
     border-right: 1px solid var(--card-border);
     display: flex; flex-direction: column;
     overflow-y: auto; padding: 24px 0;
+    transition: all 0.3s ease;
   }
 
   .sidebar-logo {
-    padding: 0 20px 28px;
+    padding: 0 24px 28px;
     border-bottom: 1px solid var(--card-border);
+    margin-bottom: 8px;
   }
 
   .sidebar-logo h2 {
     font-family: 'Space Mono', monospace;
-    font-size: 15px; color: var(--text); letter-spacing: 0.5px;
+    font-size: 16px; color: var(--text); letter-spacing: 0.5px;
+    margin-bottom: 4px;
   }
 
   .sidebar-logo span {
-    font-size: 11px; color: var(--green);
-    font-weight: 500; letter-spacing: 1px; text-transform: uppercase;
+    font-size: 10px; color: var(--green);
+    font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+    opacity: 0.8;
   }
 
-  .sidebar-section { padding: 20px 20px 4px; }
+  .sidebar-section { padding: 16px 16px 4px; }
 
   .sidebar-section-label {
-    font-size: 10px; font-weight: 600;
+    font-size: 10px; font-weight: 700;
     letter-spacing: 1.5px; text-transform: uppercase;
-    color: var(--text-muted); margin-bottom: 8px;
+    color: var(--text-muted); margin-bottom: 12px;
+    padding-left: 8px;
   }
 
   .sidebar-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px; border-radius: 8px;
-    cursor: pointer; font-size: 13.5px;
-    color: var(--text-dim); transition: all 0.15s; margin-bottom: 2px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-radius: 10px;
+    cursor: pointer; font-size: 14px;
+    color: var(--text-dim); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 4px;
   }
 
-  .sidebar-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+  .sidebar-item:hover { 
+    background: rgba(255,255,255,0.03); 
+    color: var(--text);
+    transform: translateX(4px);
+  }
 
   .sidebar-item.active {
     background: rgba(0,212,138,0.1);
-    color: var(--green); font-weight: 500;
+    color: var(--green); font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--green);
   }
 
-  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .dot-green { background: var(--green); }
-  .dot-orange { background: var(--orange); }
-  .dot-purple { background: var(--purple); }
-  .dot-blue { background: var(--blue); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: var(--green); box-shadow: 0 0 8px rgba(0,212,138,0.4); }
+  .dot-orange { background: var(--orange); box-shadow: 0 0 8px rgba(245,158,11,0.4); }
+  .dot-purple { background: var(--purple); box-shadow: 0 0 8px rgba(167,139,250,0.4); }
+  .dot-blue { background: var(--blue); box-shadow: 0 0 8px rgba(96,165,250,0.4); }
   .dot-gray { background: var(--text-muted); }
 
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 20px 32px; border-bottom: 1px solid var(--card-border);
-    background: var(--bg); flex-shrink: 0;
+    padding: 16px 32px; border-bottom: 1px solid var(--card-border);
+    background: rgba(19, 20, 26, 0.8);
+    backdrop-filter: blur(12px);
+    flex-shrink: 0; z-index: 10;
   }
 
-  .topbar-left h1 { font-size: 22px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
-  .breadcrumb { font-size: 12px; color: var(--text-muted); }
+  .topbar-left h1 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .breadcrumb { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
-  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
 
   .avatar {
-    width: 36px; height: 36px; border-radius: 50%;
-    background: linear-gradient(135deg, #00d48a, #0066ff);
+    width: 34px; height: 34px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--green), #0066ff);
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; color: white;
+    font-size: 13px; font-weight: 700; color: white;
     font-family: 'Space Mono', monospace;
   }
 
-  .username { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+  .username { font-size: 14px; font-weight: 600; color: var(--text); }
 
   .btn-logout {
-    padding: 7px 16px; border-radius: 8px;
-    border: 1px solid rgba(248,113,113,0.3);
-    background: transparent; color: #f87171;
-    font-size: 12px; font-family: 'DM Sans', sans-serif;
-    cursor: pointer; transition: all 0.15s;
+    padding: 8px 16px; border-radius: 8px;
+    border: 1px solid rgba(248,113,113,0.2);
+    background: rgba(248,113,113,0.05); color: #f87171;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
   }
-  .btn-logout:hover { background: rgba(248,113,113,0.08); }
+  .btn-logout:hover { background: rgba(248,113,113,0.15); border-color: #f87171; }
 
-  .content { flex: 1; overflow-y: auto; padding: 28px 32px; }
+  .content { 
+    flex: 1; overflow-y: auto; padding: 32px;
+    background: radial-gradient(circle at top right, rgba(0, 212, 138, 0.03), transparent 400px);
+  }
 
-  .stat-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 16px; margin-bottom: 24px;
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 1200px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .stats-grid { grid-template-columns: 1fr; }
+    .sidebar { width: 0; min-width: 0; overflow: hidden; }
   }
 
   .stat-card {
     background: var(--card-bg); border: 1px solid var(--card-border);
-    border-radius: 14px; padding: 22px; transition: border-color 0.2s;
+    border-radius: 16px; padding: 24px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative; overflow: hidden;
   }
-  .stat-card:hover { border-color: #3a3b48; }
+  .stat-card:hover { 
+    border-color: var(--green); 
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+  }
 
   .stat-label {
-    font-size: 11px; font-weight: 500; letter-spacing: 0.8px;
-    text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px;
   }
 
   .stat-value {
     font-family: 'Space Mono', monospace;
-    font-size: 36px; font-weight: 700; color: var(--text);
-    line-height: 1; margin-bottom: 8px;
+    font-size: 32px; font-weight: 700; color: var(--text);
+    line-height: 1; margin-bottom: 12px;
   }
-  .stat-value.big { font-size: 28px; }
 
-  .stat-sub { font-size: 12px; color: var(--text-muted); }
-  .stat-sub.green { color: var(--green); font-weight: 500; }
-  .stat-sub.orange { color: var(--orange); font-weight: 500; }
+  .stat-sub { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+  .stat-sub span { color: var(--green); font-weight: 600; }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  @media (max-width: 1024px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+  }
 
   .table-card {
     background: var(--card-bg); border: 1px solid var(--card-border);
-    border-radius: 14px; overflow: hidden;
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   }
 
   .table-header {
@@ -268,53 +309,83 @@ const styles = `
 const SIDEBAR_ITEMS = [
   {
     section: "TABLEAU DE BORD",
-    items: [{ label: "Vue d'ensemble", dot: "green", page: "dashboard" }]
+    items: [{ label: "Vue d'ensemble", dot: "green", page: "dashboard" }],
   },
   {
     section: "UTILISATEURS",
     items: [
       { label: "Utilisateurs", dot: "blue", page: "users" },
-      { label: "Groupes",      dot: "blue", page: null  },
-    ]
+      { label: "Groupes", dot: "blue", page: null },
+    ],
   },
   {
     section: "TRADING",
     items: [
-      { label: "Trades",      dot: "orange", page: "trades"     },
-      { label: "Prix marché", dot: "orange", page: "prices"     },
-      { label: "Portfolios",  dot: "orange", page: "portfolios" },
-    ]
+      { label: "Trades", dot: "orange", page: "trades" },
+      { label: "Prix marché", dot: "orange", page: "prices" },
+      { label: "Portfolios", dot: "orange", page: "portfolios" },
+    ],
   },
   {
     section: "IA / ML",
     items: [
       { label: "Prédictions", dot: "purple", page: "predictions" },
-      { label: "Modèles ML",  dot: "purple", page: null          },
-      { label: "Logs Celery", dot: "purple", page: null          },
-    ]
+      { label: "Modèles ML", dot: "purple", page: "ml-models" },
+      { label: "Logs Celery", dot: "purple", page: "celery-logs" },
+    ],
   },
   {
     section: "SYSTÈME",
     items: [
-      { label: "Logs d'audit", dot: "gray", page: null },
-      { label: "Paramètres",   dot: "gray", page: null },
-    ]
+      { label: "Logs d'audit", dot: "gray", page: "audit-logs" },
+      { label: "Paramètres", dot: "gray", page: "settings" },
+    ],
   },
 ];
 
 const MOCK_ACTIONS = [
-  { time: "09:14:32", user: "bot_engine",  action: "Exécuté trade BUY...",      model: "Trade",      status: "green"  },
-  { time: "09:10:05", user: "celery",      action: "Prédiction générée...",      model: "Prediction", status: "green"  },
-  { time: "09:05:00", user: "celery",      action: "Fetch prix BTC/USD",         model: "StockPrice", status: "green"  },
-  { time: "08:58:11", user: "superadmin",  action: "Modifié seuil confi...",     model: "BotConfig",  status: "orange" },
-  { time: "08:45:22", user: "bot_engine",  action: "Stop-loss déclenché...",     model: "Trade",      status: "red"    },
+  {
+    time: "09:14:32",
+    user: "bot_engine",
+    action: "Exécuté trade BUY...",
+    model: "Trade",
+    status: "green",
+  },
+  {
+    time: "09:10:05",
+    user: "celery",
+    action: "Prédiction générée...",
+    model: "Prediction",
+    status: "green",
+  },
+  {
+    time: "09:05:00",
+    user: "celery",
+    action: "Fetch prix BTC/USD",
+    model: "StockPrice",
+    status: "green",
+  },
+  {
+    time: "08:58:11",
+    user: "superadmin",
+    action: "Modifié seuil confi...",
+    model: "BotConfig",
+    status: "orange",
+  },
+  {
+    time: "08:45:22",
+    user: "bot_engine",
+    action: "Stop-loss déclenché...",
+    model: "Trade",
+    status: "red",
+  },
 ];
 
 const statusBadge = (s) => {
   const map = {
-    green:  ["badge-green",  "OK"],
+    green: ["badge-green", "OK"],
     orange: ["badge-orange", "AVERT."],
-    red:    ["badge-red",    "STOP"],
+    red: ["badge-red", "STOP"],
     purple: ["badge-purple", "INFO"],
   };
   const [cls, label] = map[s] || ["badge-green", "OK"];
@@ -323,226 +394,121 @@ const statusBadge = (s) => {
 
 // ─── PAGE TITLES ──────────────────────────────────────────────────
 const PAGE_META = {
-  dashboard:   { title: "Vue d'ensemble",  breadcrumb: "Admin › Dashboard"    },
-  users:       { title: "Utilisateurs",    breadcrumb: "Admin › Utilisateurs" },
-  trades:      { title: "Trades",          breadcrumb: "Admin › Trading"      },
-  prices:      { title: "Prix marché",     breadcrumb: "Admin › Trading"      },
-  portfolios:  { title: "Portfolios",      breadcrumb: "Admin › Trading"      },
-  predictions: { title: "Prédictions IA",  breadcrumb: "Admin › IA / ML"      },
+  dashboard: { title: "Vue d'ensemble", breadcrumb: "Admin › Dashboard" },
+  users: { title: "Utilisateurs", breadcrumb: "Admin › Utilisateurs" },
+  trades: { title: "Trades", breadcrumb: "Admin › Trading" },
+  prices: { title: "Prix marché", breadcrumb: "Admin › Trading" },
+  portfolios: { title: "Portfolios", breadcrumb: "Admin › Trading" },
+  predictions: { title: "Prédictions IA", breadcrumb: "Admin › IA / ML" },
+  "ml-models": { title: "Modèles ML", breadcrumb: "Admin › IA / ML" },
+  "celery-logs": { title: "Logs Celery", breadcrumb: "Admin › IA / ML" },
+  "audit-logs": { title: "Logs d'audit", breadcrumb: "Admin › Système" },
+  settings: { title: "Paramètres", breadcrumb: "Admin › Système" },
 };
 
-// ─── USERS PAGE ───────────────────────────────────────────────────
-function UsersPage() {
-  const [users, setUsers]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [error, setError]       = useState('');
-  const [form, setForm]         = useState({
-    username: '', email: '', password: '',
-    first_name: '', last_name: '', is_staff: false,
+// ─── DASHBOARD (main export) ──────────────────────────────────────
+export default function Dashboard({
+  onLogout,
+  currentPage,
+  onNavigate,
+  children,
+}) {
+  const [stats, setStats] = useState({
+    users: "—",
+    trades: "—",
+    predictions: "—",
+    bots: "—",
+    pnl: 0,
+    recent_activity: [],
   });
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [username, setUsername] = useState("superadmin");
 
-  const token = localStorage.getItem('access_token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  useEffect(() => {
+    const user = localStorage.getItem("username");
+    const token = localStorage.getItem("access_token");
+    if (user) setUsername(user);
 
-  const load = () => {
-    setLoading(true);
-    fetch(`${API_URL}/api/users/`, { headers })
-      .then(r => r.json())
-      .then(d => setUsers(Array.isArray(d) ? d : []))
-      .finally(() => setLoading(false));
-  };
+    const fetchStats = async () => {
+      console.log("STATS FETCH START");
+      console.log("TOKEN:", token);
+      try {
+        const res = await fetch(`${API_URL}/api/stats/`, {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        console.log("STATS RESPONSE:", res);
 
-  useEffect(() => { load(); }, []);
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
 
-  const handleCreate = async () => {
-    if (!form.username || !form.password) { setError("Username et mot de passe requis."); return; }
-    await fetch(`${API_URL}/api/users/`, { method: 'POST', headers, body: JSON.stringify(form) });
-    setShowModal(false);
-    setForm({ username: '', email: '', password: '', first_name: '', last_name: '', is_staff: false });
-    setError('');
-    load();
-  };
+        const d = await res.json();
+        console.log("STATS DATA RAW:", d);
 
-  const handleToggle = async (id) => {
-    await fetch(`${API_URL}/api/users/${id}/toggle/`, { method: 'POST', headers });
-    load();
-  };
+        setStats({
+          users: d.users ?? "—",
+          trades: d.trades ?? "—",
+          predictions: d.predictions ?? "—",
+          bots: d.bots ?? "—",
+          pnl: d.pnl ?? "0",
+          recent_activity: d.recent_activity ?? [],
+        });
+      } catch (err) {
+        console.error("STATS FETCH ERROR:", err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
 
-  const handleDelete = async (id, uname) => {
-    if (window.confirm(`Supprimer "${uname}" ?`)) {
-      await fetch(`${API_URL}/api/users/${id}/`, { method: 'DELETE', headers });
-      load();
-    }
-  };
+    fetchStats();
+  }, []);
 
-  if (loading) return <div className="loading">CHARGEMENT...</div>;
+  const meta = PAGE_META[currentPage] || PAGE_META.dashboard;
+  const initials = username.slice(0, 2).toUpperCase();
 
-  return (
-    <>
-      <div className="page-header">
-        <h2>Utilisateurs ({users.length})</h2>
-        <button className="btn-add" onClick={() => setShowModal(true)}>+ Nouvel utilisateur</button>
-      </div>
+  const renderContent = () => {
+    if (children) return children;
 
-      <div className="table-card">
-        <table>
-          <thead>
-            <tr>
-              <th>Utilisateur</th><th>Email</th><th>Rôle</th>
-              <th>Statut</th><th>Inscrit le</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.length === 0 ? (
-              <tr><td colSpan="6" className="empty">Aucun utilisateur</td></tr>
-            ) : users.map(u => (
-              <tr key={u.id}>
-                <td className="user">{u.username}</td>
-                <td>{u.email || '—'}</td>
-                <td>
-                  <span className={`badge ${u.is_staff ? 'badge-purple' : 'badge-green'}`}>
-                    {u.is_staff ? 'Admin' : 'User'}
-                  </span>
-                </td>
-                <td>
-                  <span className={`badge ${u.is_active ? 'badge-green' : 'badge-orange'}`}>
-                    {u.is_active ? 'Actif' : 'Inactif'}
-                  </span>
-                </td>
-                <td className="time">{new Date(u.date_joined).toLocaleDateString('fr-FR')}</td>
-                <td style={{ display: 'flex', gap: 6 }}>
-                  <button
-                    className={`btn-icon ${u.is_active ? 'btn-toggle-off' : 'btn-toggle-on'}`}
-                    onClick={() => handleToggle(u.id)}
-                  >
-                    {u.is_active ? 'Désactiver' : 'Activer'}
-                  </button>
-                  <button className="btn-icon btn-delete" onClick={() => handleDelete(u.id, u.username)}>
-                    Supprimer
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Nouvel utilisateur</h3>
-            {error && <div style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-            {[
-              { label: "Nom d'utilisateur *", key: 'username',   type: 'text'     },
-              { label: 'Email',               key: 'email',      type: 'email'    },
-              { label: 'Mot de passe *',      key: 'password',   type: 'password' },
-              { label: 'Prénom',              key: 'first_name', type: 'text'     },
-              { label: 'Nom',                 key: 'last_name',  type: 'text'     },
-            ].map(f => (
-              <div className="form-group" key={f.key}>
-                <label className="form-label">{f.label}</label>
-                <input
-                  className="form-input" type={f.type} value={form[f.key]}
-                  onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                />
-              </div>
-            ))}
-            <div className="form-group">
-              <div className="checkbox-row">
-                <input type="checkbox" id="is_staff" checked={form.is_staff}
-                  onChange={e => setForm({ ...form, is_staff: e.target.checked })} />
-                <label htmlFor="is_staff">Administrateur (staff)</label>
-              </div>
+    return (
+      <>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-label">Utilisateurs actifs</div>
+            <div className="stat-value">{stats.users || 0}</div>
+            <div className="stat-sub">
+              <span>▲ 12%</span> vs mois dernier
             </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowModal(false)}>Annuler</button>
-              <button className="btn-primary" onClick={handleCreate}>Créer</button>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Trades exécutés</div>
+            <div className="stat-value">{stats.trades || 0}</div>
+            <div className="stat-sub">
+              <span>▲ 24%</span> volume total
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Prédictions IA</div>
+            <div className="stat-value">{stats.predictions || 0}</div>
+            <div className="stat-sub">
+              <span>▲ 8%</span> précision 82%
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">PnL Global</div>
+            <div className="stat-value">{stats.pnl || 0}$</div>
+            <div className="stat-sub">
+              <span>▲ 1.2k$</span> ce mois-ci
             </div>
           </div>
         </div>
-      )}
-    </>
-  );
-}
 
-// ─── COMING SOON ──────────────────────────────────────────────────
-function ComingSoon({ title }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '80px 0', color: '#6b6d80' }}>
-      <div style={{ fontSize: 40, marginBottom: 16 }}>🚧</div>
-      <div style={{ fontFamily: 'Space Mono', fontSize: 14, letterSpacing: 2 }}>
-        {title.toUpperCase()} — BIENTÔT DISPONIBLE
-      </div>
-    </div>
-  );
-}
-
-// ─── DASHBOARD (main export) ──────────────────────────────────────
-export default function Dashboard({ onLogout }) {
-  const [stats, setStats]     = useState({ users: '—', trades: '—', predictions: '—', bots: '—' });
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [currentPage, setCurrentPage]  = useState('dashboard');
-  const [username, setUsername]        = useState('superadmin');
-
-  useEffect(() => {
-    const user  = localStorage.getItem('username');
-    const token = localStorage.getItem('access_token');
-    if (user) setUsername(user);
-
-    fetch(`${API_URL}/api/stats/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then(d => setStats({
-        users:       d.users       ?? '—',
-        trades:      d.trades      ?? '—',
-        predictions: d.predictions ?? '—',
-        bots:        d.bots        ?? '—',
-      }))
-      .finally(() => setStatsLoading(false));
-  }, []);
-
-  const meta     = PAGE_META[currentPage] || PAGE_META.dashboard;
-  const initials = username.slice(0, 2).toUpperCase();
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'users':       return <UsersPage />;
-      case 'trades':      return <ComingSoon title="Trades" />;
-      case 'prices':      return <ComingSoon title="Prix marché" />;
-      case 'portfolios':  return <ComingSoon title="Portfolios" />;
-      case 'predictions': return <ComingSoon title="Prédictions IA" />;
-      default:            return (
-        <>
-          <div className="stat-grid">
-            <div className="stat-card">
-              <div className="stat-label">Utilisateurs</div>
-              <div className="stat-value">{stats.users}</div>
-              <div className="stat-sub green">+3 ce mois</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Trades total</div>
-              <div className="stat-value big">
-                {typeof stats.trades === 'number' ? stats.trades.toLocaleString() : stats.trades}
-              </div>
-              <div className="stat-sub">47 aujourd'hui</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Prédictions IA</div>
-              <div className="stat-value big">
-                {typeof stats.predictions === 'number' ? stats.predictions.toLocaleString() : stats.predictions}
-              </div>
-              <div className="stat-sub orange">Précision: 78%</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-label">Bots actifs</div>
-              <div className="stat-value">{stats.bots}</div>
-              <div className="stat-sub">6 en pause</div>
-            </div>
+        <div className="dashboard-grid">
+          <div style={{ gridColumn: "span 2" }}>
+            <Charts onExpired={onLogout} />
           </div>
 
-          <div className="table-card">
+          <div className="table-card" style={{ gridColumn: "span 2" }}>
             <div className="table-header">
               <h2>Dernières actions</h2>
               <button className="btn-outline">Voir tout</button>
@@ -550,56 +516,49 @@ export default function Dashboard({ onLogout }) {
             <table>
               <thead>
                 <tr>
-                  <th>Heure</th><th>Utilisateur</th>
-                  <th>Action</th><th>Modèle</th><th>Statut</th>
+                  <th>Heure</th>
+                  <th>Utilisateur</th>
+                  <th>Action</th>
+                  <th>Modèle</th>
+                  <th>Statut</th>
                 </tr>
               </thead>
               <tbody>
-                {MOCK_ACTIONS.map((row, i) => (
-                  <tr key={i}>
-                    <td className="time">{row.time}</td>
-                    <td className="user">{row.user}</td>
-                    <td className="action">{row.action}</td>
-                    <td>{row.model}</td>
-                    <td>{statusBadge(row.status)}</td>
+                {stats.recent_activity.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="empty">
+                      Aucune activité récente
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  stats.recent_activity.map((a, i) => (
+                    <tr key={i}>
+                      <td className="time">{a.time}</td>
+                      <td className="user">{a.user}</td>
+                      <td className="action">{a.action}</td>
+                      <td>{a.model}</td>
+                      <td>{statusBadge(a.status)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        </>
-      );
-    }
+        </div>
+      </>
+    );
   };
 
   return (
     <>
       <style>{styles}</style>
       <div className="layout">
-
         {/* SIDEBAR */}
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <h2>TradingBot Admin</h2>
-            <span>Django Administration</span>
-          </div>
-          {SIDEBAR_ITEMS.map(section => (
-            <div className="sidebar-section" key={section.section}>
-              <div className="sidebar-section-label">{section.section}</div>
-              {section.items.map(item => (
-                <div
-                  key={item.label}
-                  className={`sidebar-item ${currentPage === item.page ? 'active' : ''}`}
-                  onClick={() => item.page && setCurrentPage(item.page)}
-                  style={{ opacity: item.page ? 1 : 0.45, cursor: item.page ? 'pointer' : 'default' }}
-                >
-                  <span className={`dot dot-${item.dot}`} />
-                  {item.label}
-                </div>
-              ))}
-            </div>
-          ))}
-        </aside>
+        <Sidebar
+          currentPage={currentPage}
+          onNavigate={onNavigate}
+          items={SIDEBAR_ITEMS}
+        />
 
         {/* MAIN */}
         <div className="main">
@@ -611,18 +570,20 @@ export default function Dashboard({ onLogout }) {
             <div className="topbar-right">
               <div className="avatar">{initials}</div>
               <span className="username">{username}</span>
-              <button className="btn-logout" onClick={onLogout}>Déconnexion</button>
+              <button className="btn-logout" onClick={onLogout}>
+                Déconnexion
+              </button>
             </div>
           </div>
 
           <div className="content">
-            {statsLoading && currentPage === 'dashboard'
-              ? <div className="loading">CHARGEMENT...</div>
-              : renderPage()
-            }
+            {statsLoading && currentPage === "dashboard" ? (
+              <div className="loading">CHARGEMENT...</div>
+            ) : (
+              renderContent()
+            )}
           </div>
         </div>
-
       </div>
     </>
   );

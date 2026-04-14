@@ -57,7 +57,7 @@ export default function CeleryLogs({ onExpired }) {
 
   const load = () => {
     setLoading(true);
-    fetch(`${API_URL}/api/logs/celery/`, { headers: getHeaders() })
+    fetch(`${API_URL}/api/v1/logs/celery/`, { headers: getHeaders() })
       .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
       .then(d => setLogs(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));

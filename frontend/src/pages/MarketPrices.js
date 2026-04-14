@@ -3,16 +3,6 @@ import { useState, useEffect } from "react";
 const API_URL = "http://127.0.0.1:8000";
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0e0f13; --card-bg: #1a1b23; --card-border: #2a2b35;
-    --text: #e8e9f0; --text-muted: #6b6d80; --text-dim: #9a9bb0;
-    --green: #00d48a; --orange: #f59e0b; --red: #f87171;
-  }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
-
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .page-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
   .page-header-right { display: flex; align-items: center; gap: 12px; }
@@ -83,32 +73,66 @@ const getHeaders = () => ({
 });
 
 const formatVolume = (v) => {
-  if (v >= 1e9) return `${(v/1e9).toFixed(1)}B`;
-  if (v >= 1e6) return `${(v/1e6).toFixed(1)}M`;
-  if (v >= 1e3) return `${(v/1e3).toFixed(0)}K`;
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
   return v;
 };
 
-const changeClass = (c) => c > 0 ? "up" : c < 0 ? "down" : "flat";
-const changeSign  = (c) => c > 0 ? "▲" : c < 0 ? "▼" : "—";
+const changeClass = (c) => (c > 0 ? "up" : c < 0 ? "down" : "flat");
+const changeSign = (c) => (c > 0 ? "▲" : c < 0 ? "▼" : "—");
 
 export default function MarketPrices({ onExpired }) {
-  const [prices,    setPrices]    = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [refreshing,setRefreshing]= useState(false);
-  const [lastUpdate,setLastUpdate]= useState(null);
+  const [prices, setPrices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-  const load = (isRefresh = false) => {
+  const load = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
-    fetch(`${API_URL}/api/market/prices/`, { headers: getHeaders() })
-      .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
-      .then(d => {
-        setPrices(Array.isArray(d) ? d : []);
-        setLastUpdate(new Date().toLocaleTimeString('fr-FR'));
-      })
-      .finally(() => { setLoading(false); setRefreshing(false); });
+    console.log("MARKET FETCH START");
+    console.log("TOKEN:", localStorage.getItem("access_token"));
+
+    try {
+      const res = await fetch(`${API_URL}/api/v1/market/prices/`, {
+        headers: getHeaders(),
+      });
+      console.log("MARKET RESPONSE:", res);
+
+      if (res.status === 401) {
+        console.warn("MARKET: 401 received, calling onExpired");
+        onExpired();
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+      const data = await res.json();
+      console.log("MARKET DATA RAW:", data);
+
+      const formatted = (Array.isArray(data) ? data : []).map((item) => ({
+        symbol: item.symbol || item.ticker || "UNKNOWN",
+        price: item.price || 0,
+        change: item.change || 0,
+        change_pct: item.change_pct || 0,
+        high: item.high || item.price || 0,
+        low: item.low || item.price || 0,
+        volume: item.volume || 0,
+      }));
+
+      setPrices(formatted);
+      setLastUpdate(new Date().toLocaleTimeString("fr-FR"));
+    } catch (err) {
+      console.error("MARKET FETCH ERROR:", err);
+      setPrices([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => {
@@ -117,12 +141,13 @@ export default function MarketPrices({ onExpired }) {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) return (
-    <>
-      <style>{styles}</style>
-      <div className="loading">CHARGEMENT DES PRIX...</div>
-    </>
-  );
+  if (loading)
+    return (
+      <>
+        <style>{styles}</style>
+        <div className="loading">CHARGEMENT DES PRIX...</div>
+      </>
+    );
 
   return (
     <>
@@ -131,8 +156,14 @@ export default function MarketPrices({ onExpired }) {
       <div className="page-header">
         <h2>Prix du marché</h2>
         <div className="page-header-right">
-          {lastUpdate && <span className="last-update">Mis à jour à {lastUpdate}</span>}
-          <button className="btn-refresh" onClick={() => load(true)} disabled={refreshing}>
+          {lastUpdate && (
+            <span className="last-update">Mis à jour à {lastUpdate}</span>
+          )}
+          <button
+            className="btn-refresh"
+            onClick={() => load(true)}
+            disabled={refreshing}
+          >
             {refreshing ? "..." : "↻ Actualiser"}
           </button>
         </div>
@@ -140,13 +171,19 @@ export default function MarketPrices({ onExpired }) {
 
       {/* CARDS */}
       <div className="market-grid">
-        {prices.map(p => {
+        {prices.map((p) => {
           const cls = changeClass(p.change);
           return (
             <div key={p.symbol} className={`market-card ${cls}`}>
               <div className="mc-symbol">
                 <span>{p.symbol}</span>
-                <span style={{fontSize:10,color:"var(--text-muted)",fontFamily:"DM Sans"}}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "var(--text-muted)",
+                    fontFamily: "DM Sans",
+                  }}
+                >
                   {p.change > 0 ? "📈" : p.change < 0 ? "📉" : "➡️"}
                 </span>
               </div>
@@ -155,8 +192,14 @@ export default function MarketPrices({ onExpired }) {
               </div>
               <div className={`mc-change ${cls}`}>
                 <span>{changeSign(p.change)}</span>
-                <span>{p.change > 0 ? "+" : ""}{p.change}</span>
-                <span>({p.change_pct > 0 ? "+" : ""}{p.change_pct}%)</span>
+                <span>
+                  {p.change > 0 ? "+" : ""}
+                  {p.change}
+                </span>
+                <span>
+                  ({p.change_pct > 0 ? "+" : ""}
+                  {p.change_pct}%)
+                </span>
               </div>
               <div className="mc-stats">
                 <div className="mc-stat">
@@ -185,31 +228,46 @@ export default function MarketPrices({ onExpired }) {
         <table>
           <thead>
             <tr>
-              <th>Symbole</th><th>Prix</th><th>Variation</th>
-              <th>Variation %</th><th>Haut</th><th>Bas</th><th>Volume</th>
+              <th>Symbole</th>
+              <th>Prix</th>
+              <th>Variation</th>
+              <th>Variation %</th>
+              <th>Haut</th>
+              <th>Bas</th>
+              <th>Volume</th>
             </tr>
           </thead>
           <tbody>
             {prices.length === 0 ? (
-              <tr><td colSpan="7" className="empty">Aucune donnée</td></tr>
-            ) : prices.map(p => {
-              const cls = changeClass(p.change);
-              return (
-                <tr key={p.symbol}>
-                  <td className="symbol">{p.symbol}</td>
-                  <td className="price">${p.price > 0 ? p.price.toLocaleString() : "—"}</td>
-                  <td className={`change-${cls}`}>
-                    {changeSign(p.change)} {p.change > 0 ? "+" : ""}{p.change}
-                  </td>
-                  <td className={`change-${cls}`}>
-                    {p.change_pct > 0 ? "+" : ""}{p.change_pct}%
-                  </td>
-                  <td className="mono">${p.high}</td>
-                  <td className="mono">${p.low}</td>
-                  <td className="mono">{formatVolume(p.volume)}</td>
-                </tr>
-              );
-            })}
+              <tr>
+                <td colSpan="7" className="empty">
+                  Aucune donnée
+                </td>
+              </tr>
+            ) : (
+              prices.map((p) => {
+                const cls = changeClass(p.change);
+                return (
+                  <tr key={p.symbol}>
+                    <td className="symbol">{p.symbol}</td>
+                    <td className="price">
+                      ${p.price > 0 ? p.price.toLocaleString() : "—"}
+                    </td>
+                    <td className={`change-${cls}`}>
+                      {changeSign(p.change)} {p.change > 0 ? "+" : ""}
+                      {p.change}
+                    </td>
+                    <td className={`change-${cls}`}>
+                      {p.change_pct > 0 ? "+" : ""}
+                      {p.change_pct}%
+                    </td>
+                    <td className="mono">${p.high}</td>
+                    <td className="mono">${p.low}</td>
+                    <td className="mono">{formatVolume(p.volume)}</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

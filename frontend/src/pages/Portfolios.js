@@ -80,19 +80,42 @@ export default function Portfolios() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/portfolio/`, { headers: getHeaders() })
-      .then(res => res.json())
-      .then(res => {
-        setData(res);
+    const fetchPortfolio = async () => {
+      console.log("FETCH PORTFOLIO START");
+      console.log("TOKEN:", localStorage.getItem("access_token"));
+      try {
+        const res = await fetch(`${API_URL}/api/v1/portfolio/`, { headers: getHeaders() });
+        console.log("RESPONSE:", res);
+        
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+        const jsonData = await res.json();
+        console.log("PORTFOLIO DATA:", jsonData);
+
+        if (jsonData && (jsonData.positions || jsonData.portfolio)) {
+          setData(jsonData);
+        } else {
+          console.error("Invalid portfolio data structure:", jsonData);
+        }
+      } catch (err) {
+        console.error("PORTFOLIO FETCH ERROR:", err);
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+
+    fetchPortfolio();
   }, []);
 
   if (loading) return <div style={{padding:40}}>Chargement...</div>;
-const chartData = data.portfolio.map(p => ({
-  name: p.symbol,
-  value: p.invested,
-}));
+  
+  const positions = data?.positions || data?.portfolio || [];
+  
+  const chartData = positions.map(p => ({
+    name: p.ticker || p.symbol || "Unknown",
+    value: (p.quantity || 0) * (p.current || p.price || 0),
+  }));
+
   return (
     <>
       <style>{styles}</style>
@@ -104,21 +127,21 @@ const chartData = data.portfolio.map(p => ({
       {/* CARDS */}
       <div className="cards">
         <div className="card">
-          <div className="title">Investi total</div>
-          <div className="value">${data.total_invested}</div>
+          <div className="title">Balance Actuelle</div>
+          <div className="value">${data?.balance?.toFixed(2) || "0.00"}</div>
         </div>
 
         <div className="card">
-          <div className="title">Profit / Loss</div>
-          <div className={`value ${data.total_profit_loss >= 0 ? "profit" : "loss"}`}>
-            {data.total_profit_loss >= 0 ? "+" : ""}
-            ${data.total_profit_loss}
+          <div className="title">Profit / Loss Réalisé</div>
+          <div className={`value ${(data?.pnl || 0) >= 0 ? "profit" : "loss"}`}>
+            {(data?.pnl || 0) >= 0 ? "+" : ""}
+            ${data?.pnl?.toFixed(2) || "0.00"}
           </div>
         </div>
       </div>
 {/* GRAPHIQUE PORTFOLIO */}
 <div className="card" style={{ marginBottom: "20px", height: "320px" }}>
-  <div className="title">Répartition du portfolio</div>
+  <div className="title">Répartition du portfolio (Valeur actuelle)</div>
 
   <ResponsiveContainer width="100%" height="90%">
     <PieChart>
@@ -130,7 +153,7 @@ const chartData = data.portfolio.map(p => ({
         label
       >
         {chartData.map((entry, index) => (
-          <Cell key={`cell-${index}`} />
+          <Cell key={`cell-${index}`} fill={["#00d48a", "#60a5fa", "#f59e0b", "#a78bfa", "#f87171"][index % 5]} />
         ))}
       </Pie>
 
@@ -144,25 +167,32 @@ const chartData = data.portfolio.map(p => ({
           <tr>
             <th>Symbole</th>
             <th>Quantité</th>
-            <th>Investi</th>
+            <th>Prix Entrée</th>
+            <th>Prix Actuel</th>
             <th>Profit / Loss</th>
           </tr>
         </thead>
 
         <tbody>
-          {data.portfolio.map((p) => (
-            <tr key={p.symbol}>
-              <td>{p.symbol}</td>
-              <td>{p.quantity}</td>
-              <td>${p.invested.toFixed(2)}</td>
-              <td className={p.profit_loss >= 0 ? "up" : "down"}>
-                {p.profit_loss >= 0 ? "+" : ""}
-                ${p.profit_loss.toFixed(2)}
-              </td>
-            </tr>
-          ))}
+          {positions.length === 0 ? (
+            <tr><td colSpan="5" style={{textAlign:'center', padding:20}}>Aucune position ouverte</td></tr>
+          ) : (
+            positions.map((p, idx) => (
+              <tr key={p.ticker || p.symbol || idx}>
+                <td>{p.ticker || p.symbol}</td>
+                <td>{p.quantity}</td>
+                <td>${(p.entry || p.invested || 0).toFixed(2)}</td>
+                <td>${(p.current || p.price || 0).toFixed(2)}</td>
+                <td className={(p.pnl || p.profit_loss || 0) >= 0 ? "up" : "down"}>
+                  {(p.pnl || p.profit_loss || 0) >= 0 ? "+" : ""}
+                  ${(p.pnl || p.profit_loss || 0).toFixed(2)}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </>
   );
 }
+

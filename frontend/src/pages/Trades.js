@@ -3,17 +3,6 @@ import { useState, useEffect } from "react";
 const API_URL = "http://127.0.0.1:8000";
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0e0f13; --card-bg: #1a1b23; --card-border: #2a2b35;
-    --text: #e8e9f0; --text-muted: #6b6d80; --text-dim: #9a9bb0;
-    --green: #00d48a; --orange: #f59e0b; --purple: #a78bfa;
-    --blue: #60a5fa; --red: #f87171;
-  }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
-
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .page-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
 
@@ -76,18 +65,53 @@ export default function Trades({ onExpired }) {
   const [filter,  setFilter]  = useState("ALL");
 
   useEffect(() => {
-    fetch(`${API_URL}/api/trades/`, { headers: getHeaders() })
-      .then(r => { if (r.status === 401) { onExpired(); return []; } return r.json(); })
-      .then(d => setTrades(Array.isArray(d) ? d : []))
-      .finally(() => setLoading(false));
+    const fetchTrades = async () => {
+      console.log("TRADES FETCH START");
+      console.log("TOKEN:", localStorage.getItem("access_token"));
+      try {
+        const res = await fetch(`${API_URL}/api/v1/trades/`, { headers: getHeaders() });
+        console.log("TRADES RESPONSE:", res);
+
+        if (res.status === 401) {
+          onExpired();
+          return;
+        }
+
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+        const data = await res.json();
+        console.log("TRADES DATA RAW:", data);
+
+        const formatted = (Array.isArray(data) ? data : []).map(t => ({
+          ...t,
+          ticker: t.ticker || t.symbol || "UNKNOWN",
+          action: (t.action || t.type || "BUY").toUpperCase(),
+          price: parseFloat(t.price) || 0,
+          quantity: parseFloat(t.quantity) || 0,
+          profit_loss: t.profit_loss ? parseFloat(t.profit_loss) : null,
+          confidence: parseFloat(t.confidence) || 0,
+          user: t.user || "system"
+        }));
+
+        setTrades(formatted);
+      } catch (err) {
+        console.error("TRADES FETCH ERROR:", err);
+        setTrades([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrades();
   }, []);
+
 
   const filtered = filter === "ALL" ? trades : trades.filter(t => t.action === filter);
 
   const totalBuy    = trades.filter(t => t.action === "BUY").length;
   const totalSell   = trades.filter(t => t.action === "SELL").length;
   const totalPL     = trades.reduce((acc, t) => acc + (parseFloat(t.profit_loss) || 0), 0);
-  const avgConf     = trades.length ? (trades.reduce((a,t) => a + t.confidence, 0) / trades.length * 100).toFixed(0) : 0;
+  const avgConf     = trades.length ? (trades.reduce((a,t) => a + (parseFloat(t.confidence) || 0), 0) / trades.length * 100).toFixed(0) : 0;
 
   return (
     <>
@@ -156,20 +180,22 @@ export default function Trades({ onExpired }) {
               <tr><td colSpan="8" className="empty">Aucun trade trouvé</td></tr>
             ) : filtered.map(t => {
               const pl = parseFloat(t.profit_loss);
+              const confPct = (parseFloat(t.confidence) || 0) * 100;
+              const date = new Date(t.executed_at).toLocaleString('fr-FR');
               return (
                 <tr key={t.id}>
-                  <td className="mono">{t.executed_at}</td>
+                  <td className="mono">{date}</td>
                   <td className="user">{t.user}</td>
-                  <td className="symbol">{t.symbol}</td>
+                  <td className="symbol">{t.ticker}</td>
                   <td>
                     <span className={`badge ${t.action==="BUY"?"badge-green":"badge-red"}`}>{t.action}</span>
                   </td>
                   <td className="mono">${parseFloat(t.price).toLocaleString()}</td>
                   <td className="mono">{t.quantity}</td>
                   <td>
-                    <span style={{fontSize:12}}>{(t.confidence*100).toFixed(0)}%</span>
+                    <span style={{fontSize:12}}>{confPct.toFixed(0)}%</span>
                     <div className="confidence-bar">
-                      <div className="confidence-fill" style={{width:`${t.confidence*100}%`}} />
+                      <div className="confidence-fill" style={{width:`${confPct}%`}} />
                     </div>
                   </td>
                   <td>

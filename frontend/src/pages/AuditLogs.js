@@ -83,7 +83,7 @@ export default function AuditLogs({ onExpired }) {
 
   const load = () => {
     setLoading(true);
-    fetch(`${API_URL}/api/logs/audit/`, { headers: getHeaders() })
+    fetch(`${API_URL}/api/v1/logs/audit/`, { headers: getHeaders() })
       .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
       .then(d => setLogs(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));

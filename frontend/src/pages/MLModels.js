@@ -48,7 +48,7 @@ export default function MLModels({ onExpired }) {
 
   const load = () => {
     setLoading(true);
-    fetch(`${API_URL}/api/ml/models/`, { headers: getHeaders() })
+    fetch(`${API_URL}/api/v1/ml/models/`, { headers: getHeaders() })
       .then(r => { if (r.status===401){onExpired();return null;} return r.json(); })
       .then(d => { if (d) setData(d); })
       .finally(() => setLoading(false));

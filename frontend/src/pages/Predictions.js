@@ -3,17 +3,6 @@ import { useState, useEffect } from "react";
 const API_URL = "http://127.0.0.1:8000";
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0e0f13; --card-bg: #1a1b23; --card-border: #2a2b35;
-    --text: #e8e9f0; --text-muted: #6b6d80; --text-dim: #9a9bb0;
-    --green: #00d48a; --orange: #f59e0b; --purple: #a78bfa;
-    --blue: #60a5fa; --red: #f87171;
-  }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; }
-
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
   .page-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
 
@@ -85,7 +74,16 @@ const styles = `
   ::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 10px; }
 `;
 
-const TICKERS = ["AAPL","NVDA","BTC-USD","ETH-USD","MSFT","GOOGL","TSLA","AMZN"];
+const TICKERS = [
+  "AAPL",
+  "NVDA",
+  "BTC-USD",
+  "ETH-USD",
+  "MSFT",
+  "GOOGL",
+  "TSLA",
+  "AMZN",
+];
 
 const getHeaders = () => ({
   "Content-Type": "application/json",
@@ -93,7 +91,7 @@ const getHeaders = () => ({
 });
 
 const confColor = (signal) => {
-  if (signal === "BUY")  return "confidence-fill-green";
+  if (signal === "BUY") return "confidence-fill-green";
   if (signal === "SELL") return "confidence-fill-red";
   return "confidence-fill-orange";
 };
@@ -105,58 +103,76 @@ const toPercent = (val) => {
 
 export default function Predictions({ onExpired }) {
   const [predictions, setPredictions] = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [ticker,      setTicker]      = useState("");
-  const [predicting,  setPredicting]  = useState(false);
-  const [result,      setResult]      = useState(null);
-  const [predError,   setPredError]   = useState("");
-  const [tradeMsg,    setTradeMsg]    = useState("");  // ← AJOUTÉ
-  const [mlStatus,    setMlStatus]    = useState("checking");
+  const [loading, setLoading] = useState(true);
+  const [ticker, setTicker] = useState("");
+  const [predicting, setPredicting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [predError, setPredError] = useState("");
+  const [tradeMsg, setTradeMsg] = useState(""); // ← AJOUTÉ
+  const [mlStatus, setMlStatus] = useState("checking");
 
   const loadPredictions = () => {
     setLoading(true);
-    fetch(`${API_URL}/api/predictions/`, { headers: getHeaders() })
-      .then(r => { if (r.status===401){onExpired();return[];} return r.json(); })
-      .then(d => setPredictions(Array.isArray(d) ? d : []))
+    fetch(`${API_URL}/api/v1/predictions/`, { headers: getHeaders() })
+      .then((r) => {
+        if (r.status === 401) {
+          onExpired();
+          return [];
+        }
+        return r.json();
+      })
+      .then((d) => setPredictions(Array.isArray(d) ? d : []))
       .finally(() => setLoading(false));
   };
 
   const checkHealth = () => {
     setMlStatus("checking");
-    fetch(`${API_URL}/api/ml/health/`, { headers: getHeaders() })
-      .then(r => r.json())
-      .then(d => setMlStatus(d.status === "offline" ? "offline" : "online"))
+    fetch(`${API_URL}/api/v1/health/`, { headers: getHeaders() })
+      .then((r) => r.json())
+      .then((d) => setMlStatus(d.status === "ok" ? "online" : "offline"))
       .catch(() => setMlStatus("offline"));
   };
 
-  useEffect(() => { loadPredictions(); checkHealth(); }, []);
+  useEffect(() => {
+    loadPredictions();
+    checkHealth();
+  }, []);
 
   const handlePredict = async () => {
-    if (!ticker.trim()) { setPredError("Entrez un ticker (ex: AAPL, NVDA, BTC-USD)"); return; }
+    if (!ticker.trim()) {
+      setPredError("Entrez un ticker (ex: AAPL, NVDA, BTC-USD)");
+      return;
+    }
     setPredicting(true);
     setPredError("");
-    setTradeMsg("");  // ← reset
+    setTradeMsg(""); // ← reset
     setResult(null);
     try {
-      const res  = await fetch(`${API_URL}/api/predictions/predict/`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({ ticker: ticker.toUpperCase() }),
-      });
+      const res = await fetch(
+        `${API_URL}/api/v1/predict/${ticker.toUpperCase()}/`,
+        {
+          method: "GET",
+          headers: getHeaders(),
+        },
+      );
       const data = await res.json();
       if (res.ok) {
         setResult(data);
         loadPredictions();
         // ── Message automatique si trade créé ──
-        if (data.trade_created) {
-          setTradeMsg(`✅ Trade ${data.signal} créé automatiquement pour ${data.symbol} à $${parseFloat(data.predicted_price).toLocaleString()} !`);
-        } else if (data.signal === 'HOLD') {
-          setTradeMsg(`ℹ️ Signal HOLD — aucun trade créé (attente recommandée)`);
+        if (data.valid) {
+          setTradeMsg(
+            `✅ Analyse terminée pour ${data.ticker} ! Signal: ${data.signal} (${toPercent(data.confidence)}%)`,
+          );
+        } else {
+          setPredError(data.error || "Erreur lors de la prédiction");
         }
       } else if (res.status === 401) {
         onExpired();
       } else {
-        setPredError(data.error || "Erreur lors de la prédiction");
+        setPredError(
+          data.detail || data.error || "Erreur lors de la prédiction",
+        );
       }
     } catch {
       setPredError("Erreur de connexion au serveur");
@@ -166,8 +182,8 @@ export default function Predictions({ onExpired }) {
   };
 
   const signalBadge = (s) => {
-    const map = { BUY:"badge-green", SELL:"badge-red", HOLD:"badge-orange" };
-    return <span className={`badge ${map[s]||"badge-green"}`}>{s}</span>;
+    const map = { BUY: "badge-green", SELL: "badge-red", HOLD: "badge-orange" };
+    return <span className={`badge ${map[s] || "badge-green"}`}>{s}</span>;
   };
 
   return (
@@ -177,8 +193,17 @@ export default function Predictions({ onExpired }) {
       <div className="page-header">
         <h2>Prédictions IA</h2>
         <div className="ml-status">
-          <div className={`ml-dot ${mlStatus==="offline"?"offline":mlStatus==="checking"?"checking":""}`} />
-          <span>ML Service : {mlStatus==="checking"?"vérification...":mlStatus==="online"?"en ligne ✓":"hors ligne ✗"}</span>
+          <div
+            className={`ml-dot ${mlStatus === "offline" ? "offline" : mlStatus === "checking" ? "checking" : ""}`}
+          />
+          <span>
+            ML Service :{" "}
+            {mlStatus === "checking"
+              ? "vérification..."
+              : mlStatus === "online"
+                ? "en ligne ✓"
+                : "hors ligne ✗"}
+          </span>
         </div>
       </div>
 
@@ -186,46 +211,69 @@ export default function Predictions({ onExpired }) {
         <h3>🤖 Lancer une prédiction</h3>
         <div className="predict-row">
           <div>
-            <label style={{display:"block",fontSize:11,fontWeight:600,letterSpacing:1,textTransform:"uppercase",color:"var(--text-muted)",marginBottom:6}}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 1,
+                textTransform: "uppercase",
+                color: "var(--text-muted)",
+                marginBottom: 6,
+              }}
+            >
               Ticker
             </label>
             <input
               className="predict-input"
               placeholder="ex: AAPL"
               value={ticker}
-              onChange={e => setTicker(e.target.value.toUpperCase())}
-              onKeyDown={e => e.key === "Enter" && handlePredict()}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && handlePredict()}
             />
           </div>
-          <button className="btn-predict" onClick={handlePredict} disabled={predicting || mlStatus==="offline"}>
+          <button
+            className="btn-predict"
+            onClick={handlePredict}
+            disabled={predicting || mlStatus === "offline"}
+          >
             {predicting ? "Analyse en cours..." : "Prédire →"}
           </button>
-          <button className="btn-refresh" onClick={checkHealth} style={{marginBottom:1}}>
+          <button
+            className="btn-refresh"
+            onClick={checkHealth}
+            style={{ marginBottom: 1 }}
+          >
             ↺ ML Status
           </button>
         </div>
 
         <div className="ticker-chips">
-          {TICKERS.map(t => (
-            <div key={t} className="ticker-chip" onClick={() => setTicker(t)}>{t}</div>
+          {TICKERS.map((t) => (
+            <div key={t} className="ticker-chip" onClick={() => setTicker(t)}>
+              {t}
+            </div>
           ))}
         </div>
 
         {predError && <div className="err-msg">{predError}</div>}
-        {tradeMsg  && <div className="success-msg">{tradeMsg}</div>}
+        {tradeMsg && <div className="success-msg">{tradeMsg}</div>}
 
         {result && (
           <div className="result-card">
-            <div className={`result-signal signal-${result.signal}`}>{result.signal}</div>
+            <div className={`result-signal signal-${result.signal}`}>
+              {result.signal}
+            </div>
             <div className="result-meta">
               <label>Symbole</label>
-              <strong className="mono">{result.symbol}</strong>
+              <strong className="mono">{result.ticker}</strong>
             </div>
             <div className="result-meta">
               <label>Prix actuel</label>
               <strong className="mono">
-                ${parseFloat(result.predicted_price) > 0
-                  ? parseFloat(result.predicted_price).toLocaleString()
+                $
+                {parseFloat(result.price) > 0
+                  ? parseFloat(result.price).toLocaleString()
                   : "—"}
               </strong>
             </div>
@@ -233,13 +281,18 @@ export default function Predictions({ onExpired }) {
               <label>Confiance</label>
               <strong>{toPercent(result.confidence)}%</strong>
               <div className="confidence-bar">
-                <div className={confColor(result.signal)} style={{width:`${toPercent(result.confidence)}%`}} />
+                <div
+                  className={confColor(result.signal)}
+                  style={{ width: `${toPercent(result.confidence)}%` }}
+                />
               </div>
             </div>
             <div className="result-meta">
               <label>Latence ML</label>
               <strong className="mono">
-                {result.latency_ms ? `${parseFloat(result.latency_ms).toFixed(1)} ms` : "—"}
+                {result.latency_ms
+                  ? `${parseFloat(result.latency_ms).toFixed(1)} ms`
+                  : "—"}
               </strong>
             </div>
           </div>
@@ -249,48 +302,72 @@ export default function Predictions({ onExpired }) {
       <div className="table-card">
         <div className="table-header">
           <h3>Historique des prédictions ({predictions.length})</h3>
-          <button className="btn-refresh" onClick={loadPredictions}>↻ Rafraîchir</button>
+          <button className="btn-refresh" onClick={loadPredictions}>
+            ↻ Rafraîchir
+          </button>
         </div>
         <table>
           <thead>
             <tr>
-              <th>Date</th><th>Symbole</th><th>Signal</th>
-              <th>Confiance</th><th>Prix prédit</th><th>Prix réel</th>
+              <th>Date</th>
+              <th>Symbole</th>
+              <th>Signal</th>
+              <th>Confiance</th>
+              <th>Prix prédit</th>
+              <th>Prix réel</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="6"><div className="loading-row">CHARGEMENT...</div></td></tr>
+              <tr>
+                <td colSpan="6">
+                  <div className="loading-row">CHARGEMENT...</div>
+                </td>
+              </tr>
             ) : predictions.length === 0 ? (
-              <tr><td colSpan="6" className="empty">Aucune prédiction — lancez-en une ci-dessus !</td></tr>
-            ) : predictions.map(p => {
-              const confPct = toPercent(p.confidence);
-              return (
-                <tr key={p.id}>
-                  <td className="mono">{p.created_at}</td>
-                  <td className="symbol">{p.symbol}</td>
-                  <td>{signalBadge(p.signal)}</td>
-                  <td>
-                    <div className="conf-inline">
-                      <span style={{fontSize:12}}>{confPct}%</span>
-                      <div className="conf-bar-sm">
-                        <div className="conf-bar-fill" style={{width:`${confPct}%`}} />
+              <tr>
+                <td colSpan="6" className="empty">
+                  Aucune prédiction — lancez-en une ci-dessus !
+                </td>
+              </tr>
+            ) : (
+              predictions.map((p) => {
+                const confPct = toPercent(p.confidence);
+                const date = new Date(p.created_at).toLocaleString("fr-FR");
+                return (
+                  <tr key={p.id}>
+                    <td className="mono">{date}</td>
+                    <td className="symbol">{p.ticker}</td>
+                    <td>{signalBadge(p.signal)}</td>
+                    <td>
+                      <div className="conf-inline">
+                        <span style={{ fontSize: 12 }}>{confPct}%</span>
+                        <div className="conf-bar-sm">
+                          <div
+                            className="conf-bar-fill"
+                            style={{ width: `${confPct}%` }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="mono">
-                    {parseFloat(p.predicted_price) > 0
-                      ? `$${parseFloat(p.predicted_price).toLocaleString()}`
-                      : <span style={{color:"var(--text-muted)"}}>—</span>}
-                  </td>
-                  <td className="mono">
-                    {p.actual_price
-                      ? `$${parseFloat(p.actual_price).toLocaleString()}`
-                      : <span style={{color:"var(--text-muted)"}}>—</span>}
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                    <td className="mono">
+                      {parseFloat(p.price) > 0 ? (
+                        `$${parseFloat(p.price).toLocaleString()}`
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
+                    </td>
+                    <td className="mono">
+                      {p.actual_price ? (
+                        `$${parseFloat(p.actual_price).toLocaleString()}`
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
