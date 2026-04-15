@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PortfolioView, TradeView, TradeListView, PredictionProxyView, PredictionListView, MarketPricesView, HealthCheckView, BotConfigView
+from .views import PortfolioView, TradeView, TradeListView, PredictionProxyView, PredictionListView, MarketPricesView, HealthCheckView, BotConfigView, MetricsView
 from administration.views import CeleryLogsView, AuditLogsView, MLModelsView, SettingsView
 
 urlpatterns = [
@@ -10,6 +10,7 @@ urlpatterns = [
     path('predictions/', PredictionListView.as_view(), name='api-predictions'),
     path('market/prices/', MarketPricesView.as_view(), name='api-market-prices'),
     path('health/', HealthCheckView.as_view(), name='api-health'),
+    path('metrics/', MetricsView.as_view(), name='api-metrics'),
     path('my-config/', BotConfigView.as_view(), name='api-bot-config'),
     path('logs/celery/', CeleryLogsView.as_view(), name='api-logs-celery'),
     path('logs/audit/', AuditLogsView.as_view(), name='api-logs-audit'),

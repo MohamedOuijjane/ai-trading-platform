@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import tradingApi from "../../api/trading.api";
-import portfolioApi from "../../api/portfolio.api";
-import { apiClient } from "../../api/client";
+import { getMarketPrices } from "../../store/marketStore";
+import { getPortfolio } from "../../store/portfolioStore";
 
 const TICKERS = ["BTC-USD", "ETH-USD", "TSLA", "AAPL", "GOOGL", "NVDA"];
 
@@ -10,92 +10,73 @@ const TradePage = () => {
   const [ticker, setTicker] = useState("BTC-USD");
   const [action, setAction] = useState("BUY");
   const [quantity, setQuantity] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [tradeLoading, setTradeLoading] = useState(false);
+  const [tradeError, setTradeError] = useState(null);
+  const [tradeSuccess, setTradeSuccess] = useState(false);
 
   const [balance, setBalance] = useState(0);
   const [positions, setPositions] = useState([]);
   const [prices, setPrices] = useState({});
   const [maxTradeAmount, setMaxTradeAmount] = useState(Infinity);
-  const [dataLoading, setDataLoading] = useState(true);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [pricesLoading, setPricesLoading] = useState(true);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
-    async function load() {
+    async function loadPortfolio() {
       try {
-        const [portfolioRes, pricesRes, settingsRes] = await Promise.allSettled([
-          portfolioApi.getPortfolio(),
-          apiClient("/api/v1/market/prices/"),
-          apiClient("/api/v1/settings/"),
-        ]);
-
-        if (!mounted) return;
-
-        console.log("Portfolio:", portfolioRes);
-        console.log("Prices:", pricesRes);
-        console.log("Settings:", settingsRes);
-
-        if (portfolioRes.status === "fulfilled" && portfolioRes.value) {
-          const p = portfolioRes.value;
-          setBalance(p.balance || 0);
-          setPositions(p.positions || []);
-        } else {
-          console.warn("Portfolio fetch failed:", portfolioRes.reason);
+        const data = await getPortfolio();
+        if (!cancelled) {
+          setBalance(data.balance || 0);
+          setPositions(data.positions || []);
+        }
+      } catch (err) {
+        console.warn("[TradePage] Portfolio load failed:", err.message);
+        if (!cancelled) {
           setBalance(0);
           setPositions([]);
         }
-
-        if (pricesRes.status === "fulfilled" && pricesRes.value) {
-          const raw = pricesRes.value;
-          const priceMap = {};
-          if (Array.isArray(raw)) {
-            raw.forEach((item) => {
-              if (item.symbol || item.ticker) {
-                priceMap[item.symbol || item.ticker] = parseFloat(
-                  item.price || 0,
-                );
-              }
-            });
-          } else if (typeof raw === "object") {
-            Object.entries(raw).forEach(([key, val]) => {
-              if (typeof val === "object" && val !== null) {
-                priceMap[key] = parseFloat(val.price || 0);
-              } else {
-                priceMap[key] = parseFloat(val || 0);
-              }
-            });
-          }
-          if (mounted) setPrices(priceMap);
-        } else {
-          console.warn("Prices fetch failed:", pricesRes.reason);
-          if (mounted) setPrices({});
-        }
-
-        if (settingsRes.status === "fulfilled" && settingsRes.value) {
-          const max =
-            settingsRes.value?.max_trade_amount ??
-            settingsRes.value?.maxTradeAmount ??
-            Infinity;
-          if (mounted) setMaxTradeAmount(parseFloat(max) || Infinity);
-        } else {
-          console.warn("Settings fetch failed (optional):", settingsRes.reason);
-          if (mounted) setMaxTradeAmount(Infinity);
-        }
-      } catch (err) {
-        console.error("TradePage load error:", err);
       } finally {
-        if (mounted) setDataLoading(false);
+        if (!cancelled) setPortfolioLoading(false);
       }
     }
 
-    load();
+    async function loadPrices() {
+      try {
+        const priceMap = await getMarketPrices();
+        if (!cancelled) setPrices(priceMap);
+      } catch (err) {
+        console.warn("[TradePage] Prices load failed:", err.message);
+      } finally {
+        if (!cancelled) setPricesLoading(false);
+      }
+    }
+
+    async function loadSettings() {
+      try {
+        const { apiClient } = await import("../../api/client");
+        const settings = await apiClient("/api/v1/settings/");
+        if (!cancelled && settings) {
+          const max =
+            settings.max_trade_amount ??
+            settings.maxTradeAmount ??
+            Infinity;
+          setMaxTradeAmount(parseFloat(max) || Infinity);
+        }
+      } catch {
+        if (!cancelled) setMaxTradeAmount(Infinity);
+      }
+    }
+
+    loadPortfolio();
+    loadPrices();
+    loadSettings();
 
     return () => {
-      mounted = false;
+      cancelled = true;
     };
   }, []);
 
@@ -104,20 +85,14 @@ const TradePage = () => {
   const tradeValue = qty * price;
 
   const position = positions.find(
-    (p) => (p.symbol || p.asset || "").toUpperCase() === ticker.toUpperCase(),
+    (p) =>
+      (p.symbol || p.asset || "").toUpperCase() === ticker.toUpperCase(),
   );
   const positionQty = parseFloat(position?.quantity || position?.shares || 0);
   const maxBuyQty = price > 0 ? balance / price : 0;
   const maxSellQty = positionQty;
 
-  const validation = computeValidation(
-    action,
-    qty,
-    tradeValue,
-    balance,
-    maxTradeAmount,
-    maxSellQty,
-  );
+  const validation = computeValidation(action, qty, tradeValue, balance, maxTradeAmount, maxSellQty);
 
   function computeValidation(act, q, val, bal, maxTrade, maxSell) {
     if (!ticker.trim()) return { valid: false, message: null };
@@ -132,7 +107,9 @@ const TradePage = () => {
       if (val > maxTrade)
         return {
           valid: false,
-          message: `Trade exceeds system limit of $${Number(maxTrade).toLocaleString()}.`,
+          message: `Trade exceeds system limit of $${Number(
+            maxTrade,
+          ).toLocaleString()}.`,
         };
     }
 
@@ -163,29 +140,29 @@ const TradePage = () => {
 
   const handleTickerChange = (t) => {
     setTicker(t);
-    setError(null);
+    setTradeError(null);
   };
 
   const handleActionChange = (a) => {
     setAction(a);
-    setError(null);
+    setTradeError(null);
   };
 
   const handleQuantityChange = (v) => {
     setQuantity(v);
-    setError(null);
+    setTradeError(null);
   };
 
   const handleTrade = async (e) => {
     e.preventDefault();
-    setError(null);
+    setTradeError(null);
 
     if (!ticker.trim()) {
-      setError("Please select a ticker symbol.");
+      setTradeError("Please select a ticker symbol.");
       return;
     }
     if (!quantity.trim() || parseFloat(quantity) <= 0) {
-      setError("Quantity must be greater than zero.");
+      setTradeError("Quantity must be greater than zero.");
       return;
     }
 
@@ -198,11 +175,11 @@ const TradePage = () => {
       maxSellQty,
     );
     if (!valid) {
-      setError(message);
+      setTradeError(message);
       return;
     }
 
-    setLoading(true);
+    setTradeLoading(true);
 
     try {
       const payload = {
@@ -211,15 +188,17 @@ const TradePage = () => {
         quantity: parseFloat(quantity),
       };
       await tradingApi.executeTrade(payload);
-      setSuccess(true);
+      setTradeSuccess(true);
       setQuantity("");
       setTimeout(() => navigate("/app/portfolio"), 2000);
     } catch (err) {
-      setError(err.message || "Trade failed. Please try again.");
+      setTradeError(err.message || "Trade failed. Please try again.");
     } finally {
-      setLoading(false);
+      setTradeLoading(false);
     }
   };
+
+  const dataLoading = portfolioLoading || pricesLoading;
 
   if (dataLoading) {
     return (
@@ -245,8 +224,7 @@ const TradePage = () => {
         <div className="card text-center">
           <p className="stat-label">Balance</p>
           <p className="text-lg font-bold text-white mt-1">
-            $
-            {Number(balance || 0).toLocaleString(undefined, {
+            ${Number(balance || 0).toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
@@ -256,7 +234,10 @@ const TradePage = () => {
           <p className="stat-label">{ticker} Price</p>
           <p className="text-lg font-bold text-white mt-1">
             {price > 0
-              ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              ? `$${price.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}`
               : "—"}
           </p>
         </div>
@@ -342,7 +323,7 @@ const TradePage = () => {
             onChange={(e) => handleQuantityChange(e.target.value)}
             placeholder="0.00"
             className="input-field"
-            disabled={loading}
+            disabled={tradeLoading}
           />
           <div className="flex justify-between mt-1.5">
             <span className="text-xs text-trading-muted">
@@ -371,8 +352,7 @@ const TradePage = () => {
             <div className="border-t border-trading-border pt-2 flex justify-between">
               <span className="text-sm font-semibold text-white">Total</span>
               <span className="text-sm font-bold text-trading-accent">
-                $
-                {tradeValue.toLocaleString(undefined, {
+                ${tradeValue.toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}
@@ -381,7 +361,7 @@ const TradePage = () => {
           </div>
         )}
 
-        {error && (
+        {tradeError && (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3">
             <div className="w-5 h-5 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
               <svg
@@ -398,11 +378,11 @@ const TradePage = () => {
                 />
               </svg>
             </div>
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-red-400">{tradeError}</p>
           </div>
         )}
 
-        {success && (
+        {tradeSuccess && (
           <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
               <svg
@@ -432,14 +412,14 @@ const TradePage = () => {
 
         <button
           type="submit"
-          disabled={loading || success || !validation.valid}
+          disabled={tradeLoading || tradeSuccess || !validation.valid}
           className={`w-full py-3 text-base font-semibold rounded-xl transition-all ${
             !validation.valid
               ? "bg-trading-card border border-trading-border text-trading-muted cursor-not-allowed"
               : "btn-primary"
           }`}
         >
-          {loading ? (
+          {tradeLoading ? (
             <span className="flex items-center justify-center gap-2">
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Processing...

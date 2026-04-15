@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import portfolioApi from "../../api/portfolio.api";
+import { getPortfolio } from "../../store/portfolioStore";
 
 const PortfolioPage = () => {
   const [data, setData] = useState(null);
@@ -7,21 +7,28 @@ const PortfolioPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchPortfolio = async () => {
-      setLoading(true);
-      try {
-        const result = await portfolioApi.getPortfolio();
-        console.log("Portfolio API response:", result);
-        setData(result);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
+    let cancelled = false;
+
+    getPortfolio()
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message);
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
     };
-    fetchPortfolio();
   }, []);
 
   if (loading) {
@@ -53,10 +60,6 @@ const PortfolioPage = () => {
     totalValue > 0 ? ((totalPnL / totalValue) * 100).toFixed(2) : "0.00";
 
   const getSymbol = (pos) => pos?.symbol || pos?.asset || "UNK";
-  const getInitials = (pos) => {
-    const sym = getSymbol(pos);
-    return sym.slice(0, 2).toUpperCase();
-  };
 
   return (
     <div className="space-y-6">
@@ -81,7 +84,11 @@ const PortfolioPage = () => {
         <div className="card">
           <p className="stat-label">Total P&amp;L</p>
           <p
-            className={`text-2xl font-bold mt-1 ${Number(totalPnL || 0) >= 0 ? "text-trading-green" : "text-trading-red"}`}
+            className={`text-2xl font-bold mt-1 ${
+              Number(totalPnL || 0) >= 0
+                ? "text-trading-green"
+                : "text-trading-red"
+            }`}
           >
             {Number(totalPnL || 0) >= 0 ? "+" : ""}
             {Number(totalPnL || 0).toLocaleString(undefined, {
@@ -93,7 +100,11 @@ const PortfolioPage = () => {
         <div className="card">
           <p className="stat-label">Return</p>
           <p
-            className={`text-2xl font-bold mt-1 ${parseFloat(pnlPct || 0) >= 0 ? "text-trading-green" : "text-trading-red"}`}
+            className={`text-2xl font-bold mt-1 ${
+              parseFloat(pnlPct || 0) >= 0
+                ? "text-trading-green"
+                : "text-trading-red"
+            }`}
           >
             {parseFloat(pnlPct || 0) >= 0 ? "+" : ""}
             {pnlPct}%
@@ -159,7 +170,10 @@ const PortfolioPage = () => {
                   const qty = parseFloat(pos?.quantity || 0);
 
                   return (
-                    <tr key={symbol !== "UNK" ? symbol : `pos-${idx}`} className="table-row">
+                    <tr
+                      key={symbol !== "UNK" ? symbol : `pos-${idx}`}
+                      className="table-row"
+                    >
                       <td className="table-cell">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg bg-trading-accent/20 flex items-center justify-center text-xs font-bold text-trading-accent">
@@ -180,13 +194,17 @@ const PortfolioPage = () => {
                         ${parseFloat(pos?.current_price || 0).toFixed(2)}
                       </td>
                       <td
-                        className={`table-cell text-right font-mono font-semibold ${pnl >= 0 ? "text-trading-green" : "text-trading-red"}`}
+                        className={`table-cell text-right font-mono font-semibold ${
+                          pnl >= 0 ? "text-trading-green" : "text-trading-red"
+                        }`}
                       >
                         {pnl >= 0 ? "+" : ""}
                         {pnl.toFixed(2)}
                       </td>
                       <td
-                        className={`table-cell text-right font-mono font-semibold ${pnl >= 0 ? "text-trading-green" : "text-trading-red"}`}
+                        className={`table-cell text-right font-mono font-semibold ${
+                          pnl >= 0 ? "text-trading-green" : "text-trading-red"
+                        }`}
                       >
                         {pnl >= 0 ? "+" : ""}
                         {pnlPct}%
@@ -211,7 +229,11 @@ const PortfolioPage = () => {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-2 h-2 rounded-full ${(h?.action || "").toUpperCase() === "BUY" ? "bg-trading-green" : "bg-trading-red"}`}
+                    className={`w-2 h-2 rounded-full ${
+                      (h?.action || "").toUpperCase() === "BUY"
+                        ? "bg-trading-green"
+                        : "bg-trading-red"
+                    }`}
                   />
                   <span className="text-sm font-medium text-white">
                     {h?.symbol || "—"}
@@ -221,7 +243,9 @@ const PortfolioPage = () => {
                   </span>
                 </div>
                 <span className="text-xs text-trading-muted">
-                  {h?.executed_at ? new Date(h.executed_at).toLocaleDateString() : "—"}
+                  {h?.executed_at
+                    ? new Date(h.executed_at).toLocaleDateString()
+                    : "—"}
                 </span>
               </div>
             ))}

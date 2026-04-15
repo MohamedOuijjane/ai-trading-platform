@@ -15,7 +15,8 @@ const handleResponse = async (response) => {
     throw new Error("Session expired");
   }
   const data = await response.json();
-  if (!response.ok) throw new Error(data.detail || data.error || "Request failed");
+  if (!response.ok)
+    throw new Error(data.detail || data.error || "Request failed");
   return data;
 };
 
@@ -30,7 +31,9 @@ const apiClient = async (endpoint, options = {}) => {
 
   if (body) config.body = JSON.stringify(body);
 
+  console.log(`[apiClient] → ${method} ${endpoint}`);
   const res = await fetch(`${BASE_URL}${endpoint}`, config);
+  console.log(`[apiClient] ← ${res.status} ${endpoint}`);
   return handleResponse(res);
 };
 
@@ -44,23 +47,40 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }).then(handleResponse),
 
-  getStats: () => fetch(`${BASE_URL}/api/stats/`, { headers: getHeaders() }).then(handleResponse),
+  getStats: () =>
+    fetch(`${BASE_URL}/api/stats/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
   getPredictions: () =>
-    fetch(`${BASE_URL}/api/v1/predictions/`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${BASE_URL}/api/v1/predictions/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
   predictTicker: (ticker) =>
-    fetch(`${BASE_URL}/api/v1/predict/${ticker.toUpperCase()}/`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${BASE_URL}/api/v1/predict/${ticker.toUpperCase()}/`, {
+      headers: getHeaders(),
+    }).then(handleResponse),
 
-  getTrades: () => fetch(`${BASE_URL}/api/v1/trades/`, { headers: getHeaders() }).then(handleResponse),
+  getTrades: () =>
+    fetch(`${BASE_URL}/api/v1/trades/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
   getMarketPrices: () =>
-    fetch(`${BASE_URL}/api/v1/market/prices/`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${BASE_URL}/api/v1/market/prices/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
   getHealth: () =>
-    fetch(`${BASE_URL}/api/v1/health/`, { headers: getHeaders() }).then(handleResponse),
+    fetch(`${BASE_URL}/api/v1/health/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
-  getUsers: () => fetch(`${BASE_URL}/api/users/`, { headers: getHeaders() }).then(handleResponse),
+  getUsers: () =>
+    fetch(`${BASE_URL}/api/users/`, { headers: getHeaders() }).then(
+      handleResponse,
+    ),
 
   createUser: (data) =>
     fetch(`${BASE_URL}/api/users/`, {
