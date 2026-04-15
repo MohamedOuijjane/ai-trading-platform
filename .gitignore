@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+venv/
+.venv/
+backend/venv/
+ml_service/venv/
+ml_service/ml_env/
+
+# IDE
+.idea/
+.vscode/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+dist/
+build/
+
+# Env
+*.env
+
+# ML files
+*.h5
+*.pkl
+
+# Logs
+*.log

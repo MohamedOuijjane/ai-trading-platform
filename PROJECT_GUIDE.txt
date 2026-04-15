@@ -1,0 +1,613 @@
+================================================================================
+AI TRADING PLATFORM - COMPLETE PROJECT GUIDE
+================================================================================
+LAST UPDATED: 2026-04-14 (Late Session)
+SESSION: Admin layout refactor + client data-fetching architecture overhaul
+================================================================================
+
+1. PROJECT OVERVIEW
+-------------------
+An AI-powered trading platform with a React frontend, Django REST API,
+FastAPI ML inference engine (LSTM), and PostgreSQL database.
+
+Architecture: Microservices (Frontend + Backend + ML Service + DB)
+
+Current State (as of 2026-04-14):
+- ✅ Modern React Router frontend ACTIVE (src/app/App.js + src/features/)
+- ✅ Role-based routing: /admin/* (admin) vs /app/* (client)
+- ✅ JWT auth with role detection from token (is_staff/is_superuser) FIXED
+- ✅ Admin Dashboard — SHARED LAYOUT via AdminLayout (Sidebar + Topbar + Outlet)
+- ✅ Client Trading UI (src/features/*) — wired to /app/* routes with MainLayout
+- ✅ Auto-trade system: predictions auto-execute trades when conditions met
+- ✅ API layer fixed: apiClient properly exported and used by all services
+- ✅ TailwindCSS v3 installed and configured with custom trading theme
+- ✅ Backend APIs returning real data (trades, predictions, portfolio)
+- ✅ Custom JWT token serializer: is_staff + is_superuser in token payload
+- ✅ Centralized data stores: marketStore.js + portfolioStore.js (30s TTL cache)
+- ✅ All client pages use cancelled-guard + guaranteed loading-exit patterns
+- ✅ TradePage fully defensive: pre-submit validation, disabled button, clean errors
+- ✅ PortfolioPage crash-proof: all .slice() calls guarded with optional chaining
+- ⚠️  Registration broken: /api/register/ does not exist
+- ⚠️  Metrics page: /app/metrics uses mock data (no real backend)
+- ⚠️  PredictionProxyView is AllowAny — anonymous auto-trade risk
+- ⚠️  Logs pages (Celery, Audit) are mocked/static data
+- ⚠️  PortfolioService calls ML per-position — up to 25s blocking when ML is slow
+- ⚠️  MarketPricesView: 8 sequential ML calls (40s worst case when ML is down)
+- ⚠️  401 response does window.location.href reload — loses all in-memory caches
+- ⚠️  Module-level caches not cleared on logout — stale data risk on re-login
+
+================================================================================
+2. TECH STACK & ARCHITECTURE
+================================================================================
+- FRONTEND:     React 18 + React Router v6 (Port 3000)  — src/app/App.js
+- BACKEND:      Django 4 + DRF (Port 8000)              — REST API
+- ML SERVICE:   FastAPI + TensorFlow/Keras (Port 8001)  — LSTM inference
+- DATABASE:     PostgreSQL 15 (Port 5432)
+- BROKER/CACHE: Redis (Port 6379)
+- TASK QUEUE:   Celery
+
+SERVICE PORTS:
++--------------+------------+---------------+--------------+
+| Service      | Local Port | Internal Port | Technology   |
++--------------+------------+---------------+--------------+
+| Frontend     | 3000       | 3000          | React        |
+| Backend      | 8000       | 8000          | Django       |
+| ML Service   | 8001       | 8000          | FastAPI      |
+| Database     | 5432       | 5432          | PostgreSQL   |
+| Redis        | 6379       | 6379          | Redis        |
++--------------+------------+---------------+--------------+
+
+================================================================================
+3. FRONTEND FILE STRUCTURE
+================================================================================
+
+TWO ARCHITECTURES COEXIST — MODERN IS ACTIVE, LEGACY IS IMPORTED VIA ROUTER
+
+----- MODERN FRONTEND (ACTIVE) — src/app/App.js -----
+Entry point: src/index.js → imports './app/App'
+
+src/app/
+  App.js             — React Router v6, BrowserRouter, nested route groups
+  routes.js          — ROUTES = { PUBLIC, ADMIN, APP } + AdminLayout export
+
+src/features/        — Client/Trader UI (modern, Tailwind)
+  auth/
+    LoginPage.js     — JWT login, decodes is_staff from token, role redirect
+    RegisterPage.js  — BROKEN (calls /api/register/ which doesn't exist)
+  dashboard/
+    DashboardPage.js — AI signals, auto-trade banners, execute button
+  portfolio/
+    PortfolioPage.js — User holdings (GET /api/v1/portfolio/)
+  trading/
+    TradePage.js     — Manual trade form (POST /api/v1/trade/), validated
+  metrics/
+    MetricsPage.js   — BROKEN (mock data, /api/v1/metrics/ missing)
+  settings/
+    SettingsPage.js  — User bot config (GET/PATCH /api/v1/my-config/)
+
+src/store/           — SHARED DATA LAYER (NEW — 2026-04-14 Late)
+  marketStore.js      — getMarketPrices() with 30s TTL in-memory cache
+  portfolioStore.js   — getPortfolio() with 30s TTL in-memory cache
+
+src/hooks/
+  useAuth.js         — login(), logout(), isAuthenticated(), isAdmin(),
+                       getToken() — all via localStorage
+
+src/components/
+  ProtectedRoute.js  — Guards /app/* — checks token exists → /login
+  AdminRoute.js      — Guards /admin/* — checks isAdmin → /app/dashboard
+  layout/
+    MainLayout.js    — Shell: Sidebar (w-64 fixed) + Navbar + <Outlet />
+    Sidebar.js       — Tailwind client sidebar for /app/* routes
+    Navbar.js        — Tailwind top bar with role badge + logout
+  admin/
+    AdminLayout.js   — SHARED LAYOUT for /admin/* (NEW — 2026-04-14 Late)
+                       Sidebar (CSS) + Topbar + <Outlet /> for page content
+
+src/api/
+  client.js          — apiClient() generic fetch + Bearer token
+                       Named export: export { apiClient }
+                       Console logs: [apiClient] → METHOD /endpoint ← STATUS
+                       NOTE: 401 does window.location.href="/login" (hard reload)
+  auth.api.js        — login(), register() [BROKEN — endpoint missing]
+  trading.api.js     — getPrediction(), executeTrade()
+  portfolio.api.js   — getPortfolio()
+
+----- LEGACY ADMIN FRONTEND (ACTIVE via /admin/* routes) -----
+src/pages/           — All 12 admin pages (wired to /admin/* via routes.js)
+  Dashboard.js       — Content only (no layout — AdminLayout provides it)
+  Users.js           — User CRUD with modal, styled to match Dashboard design
+  Trades.js          — Trade list with action filter tabs
+  Portfolios.js      — Admin portfolio view
+  MarketPrices.js    — Admin price table
+  Predictions.js     — Prediction table
+  Charts.js          — Admin charts (Recharts)
+  MLModels.js        — Model status cards
+  CeleryLogs.js      — Task log table (MOCKED)
+  AuditLogs.js       — Audit log table (MOCKED)
+  Settings.js        — System settings form
+
+NOTE: src/pages/Dashboard.jsx (alternate version) was DELETED as dead code.
+src/App.js (legacy state-based) was REWRITTEN as React Router v6 (unused entry).
+
+================================================================================
+4. ROUTING STRUCTURE (Current — 2026-04-14)
+================================================================================
+
+src/app/App.js — nested route groups:
+
+PUBLIC (no guard):
+  /login      → LoginPage
+  /register  → RegisterPage [BROKEN — endpoint missing]
+
+ADMIN (AdminRoute guard — is_staff required):
+  <AdminLayout>            ← shared shell: Sidebar + Topbar + <Outlet />
+    /admin/dashboard    → Dashboard.js       (stats + charts + recent actions)
+    /admin/users        → Users.js          (user CRUD)
+    /admin/trades       → Trades.js         (trade list)
+    /admin/predictions  → Predictions.js   (prediction table)
+    /admin/prices       → MarketPrices.js   (price table)
+    /admin/portfolios   → Portfolios.js    (admin portfolio)
+    /admin/charts       → Charts.js         (admin charts)
+    /admin/ml-models    → MLModels.js       (model status)
+    /admin/celery-logs  → CeleryLogs.js     (task logs — mocked)
+    /admin/audit-logs   → AuditLogs.js      (audit logs — mocked)
+    /admin/settings     → Settings.js       (system settings)
+
+APP (ProtectedRoute guard — any authenticated user):
+  <MainLayout>             ← shared shell: Tailwind Sidebar + Navbar + <Outlet />
+    /app/dashboard  → DashboardPage.js  (AI signals + auto-trade)
+    /app/portfolio  → PortfolioPage.js (user holdings)
+    /app/trade      → TradePage.js     (manual trade form)
+    /app/metrics    → MetricsPage.js   [BROKEN — mock data]
+    /app/settings   → SettingsPage.js  (user bot config)
+
+DEFAULTS:
+  /   → Navigate to /app/dashboard
+  /*  → Navigate to /login
+
+================================================================================
+5. ADMIN LAYOUT ARCHITECTURE (2026-04-14 Late — Major Refactor)
+================================================================================
+
+BEFORE (broken — only Dashboard had layout):
+  AdminRoute → <Dashboard /> (full layout with Sidebar + Topbar + content)
+               └── Sidebar + Topbar + <Children /> (renderPage switch)
+  Other routes → standalone pages, NO layout, broken UI
+
+AFTER (shared layout — all pages have identical structure):
+  AdminRoute → <AdminLayout />
+                 ├── <Sidebar />        (CSS-in-JS, .sidebar classes)
+                 ├── <div.admin-main>
+                 │   ├── <div.admin-topbar>  (TradingBot Admin + avatar + logout)
+                 │   └── <div.admin-content>
+                 │       └── <Outlet /> → each page's content
+                 └── Each page: <div.admin-page> content </div>
+
+AdminLayout.js responsibilities:
+  - Renders Sidebar (CSS-in-JS, dark theme classes)
+  - Renders topbar with username + logout
+  - Wraps <Outlet /> in .admin-content div
+  - CSS: .admin-page, .sidebar, .sidebar-item, .dot, .admin-topbar, etc.
+  - Contains ALL sidebar and layout CSS (no inheritance from Dashboard.js)
+  - Does NOT use Tailwind
+
+Dashboard.js changes:
+  - REMOVED: Sidebar, topbar, .layout wrapper, username state
+  - REMOVED: onNavigate prop and state-based navigation
+  - KEPT: Stats cards, Charts component, recent actions table, all CSS
+  - NOW: Pure content component, renders inside AdminLayout's <Outlet />
+
+AdminLayout CSS classes (all defined in AdminLayout.js <style> block):
+  .admin-layout   — flex container, 100vh, overflow hidden
+  .sidebar        — 260px fixed width, dark bg, scrollable
+  .sidebar-logo  — padding, border-bottom, h2 + span
+  .sidebar-section — padding for section groups
+  .sidebar-item   — flex row, hover translateX(4px), active: green highlight
+  .dot / .dot-green/.dot-orange/.dot-purple/.dot-blue/.dot-gray — status dots
+  .admin-main    — flex column, flex-1
+  .admin-topbar  — flex row, blur backdrop, border-bottom
+  .admin-content — flex-1, overflow-y auto, padding 32px
+  .admin-page    — width 100%, max-width 1400px, margin 0 auto
+
+Page structure standard (all src/pages/*):
+  return (
+    <div className="admin-page">
+      <style>{styles}</style>
+      <div className="page-header">
+        <h2>Page Title</h2>
+      </div>
+      <div className="page-content">
+        {/* content */}
+      </div>
+    </div>
+  )
+
+================================================================================
+6. CLIENT DATA-FETCHING ARCHITECTURE (2026-04-14 Late — NEW)
+================================================================================
+
+SHARED STORES (src/store/):
+
+marketStore.js — 30s TTL in-memory cache for /api/v1/market/prices/
+  getMarketPrices(forceRefresh?: boolean): Promise<Record<string, number>>
+  - Returns immediately from cache if TTL not expired
+  - Logs: "[marketStore] Prices cache hit" vs "[marketStore] Fetching prices..."
+  - Normalizes both array and object response formats
+  - Falls back to empty {} on error
+  clearPricesCache()
+
+portfolioStore.js — 30s TTL in-memory cache for /api/v1/portfolio/
+  getPortfolio(forceRefresh?: boolean): Promise<PortfolioData>
+  - Returns immediately from cache if TTL not expired
+  - Logs: "[portfolioStore] Portfolio cache hit" vs "[portfolioStore] Fetching..."
+  - Falls back to { balance: 0, positions: [], pnl: 0 } on error
+  clearPortfolioCache()
+
+BEFORE (each page fetched independently, no cache, no guard):
+  Dashboard  ──fetch──→ /api/v1/market/prices/   (fresh, every mount)
+  Trade      ──fetch──→ /api/v1/market/prices/    (fresh, every mount)
+  Portfolio  ──fetch──→ /api/v1/portfolio/       (fresh, every mount)
+  Prediction ──fetch──→ /api/v1/predict/{ticker}/ (every render + on ticker change)
+
+AFTER (centralized stores, 30s cache, cancelled guard):
+  marketStore ──fetch──→ /api/v1/market/prices/   (cached 30s)
+  portfolioStore ──fetch──→ /api/v1/portfolio/    (cached 30s)
+
+  Dashboard  ──uses marketStore──→ cached prices
+  Trade      ──uses both stores──→ cached prices + portfolio
+  Portfolio  ──uses portfolioStore──→ cached portfolio
+  Prediction ──user action only──→ /api/v1/predict/{ticker}/
+
+  Every useEffect uses:
+    - let cancelled = false
+    - if (!cancelled) setState(...)
+    - return () => { cancelled = true }
+
+USAGE IN COMPONENTS:
+  DashboardPage.js:
+    useEffect(() => { getMarketPrices().then(...) }, [])
+    useEffect(() => { getTickerPrediction(ticker) }, [ticker, getTickerPrediction])
+    NOTE: prediction is fetched on ticker change (NOT on every render)
+
+  PortfolioPage.js:
+    useEffect(() => { getPortfolio().then(...) }, [])
+
+  TradePage.js:
+    useEffect(() => {
+      loadPortfolio()   // independent async, no await
+      loadPrices()      // independent async, no await
+      loadSettings()    // independent async, no await
+    }, [])
+
+================================================================================
+7. AUTHENTICATION PIPELINE
+================================================================================
+
+BACKEND JWT FLOW:
+1. User submits username + password
+2. POST /api/token/ → CustomTokenObtainPairView (config/serializers.py)
+3. CustomTokenObtainPairSerializer.get_token() adds to payload:
+   - username
+   - is_staff
+   - is_superuser
+4. Returns { access, refresh }
+
+Token payload AFTER FIX:
+{
+  "token_type": "access",
+  "exp": ...,
+  "iat": ...,
+  "jti": ...,
+  "user_id": 1,
+  "username": "admin",        ← ADDED
+  "is_staff": true,          ← ADDED (was missing before!)
+  "is_superuser": true       ← ADDED (was missing before!)
+}
+
+FRONTEND LOGIN FLOW:
+1. authApi.login(username, password) → POST /api/token/
+2. Frontend decodes JWT payload (NO backend call needed):
+   const payload = data.access.split(".")[1]
+   const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")))
+   const isAdmin = !!decoded.is_staff || !!decoded.is_superuser
+3. login(token, { is_staff: isAdmin, username }) stores:
+   - localStorage.access_token = token
+   - localStorage.is_staff = "true" | "false"
+   - localStorage.username = username
+4. Redirect:
+   isAdmin=true  → /admin/dashboard
+   isAdmin=false → /app/dashboard
+
+⚠️  CRITICAL: 401 response handling does window.location.href="/login"
+   This is a HARD PAGE RELOAD — all React state + in-memory caches are LOST.
+   User must re-authenticate. All store caches are cleared on logout but
+   NOT on 401 redirect (see KNOWN ISSUES).
+
+================================================================================
+8. BACKEND FILE STRUCTURE
+================================================================================
+DJANGO APPS:
+
+config/          — Django project settings
+  settings.py    — REST_FRAMEWORK with DEFAULT_PERMISSION=IsAdminUser,
+                   SimpleJWT configured, PostgreSQL
+  urls.py        — Root routing: admin/, api/, api/v1/
+  serializers.py — CustomTokenObtainPairSerializer + CustomTokenObtainPairView
+
+trading/         — Core trading business logic
+  urls.py        — All /api/v1/* endpoints
+  views.py       — PortfolioView, TradeView, TradeListView,
+                   PredictionProxyView (AllowAny ⚠️), MarketPricesView
+  serializers.py — TradeSerializer, BotConfigSerializer
+  services/
+    prediction_service.py — ML proxy + adapter + fallback (5s timeout per call)
+    portfolio_service.py  — Trade aggregation per user (calls ML per-position ⚠️)
+    trade_service.py     — execute_trade() with FIFO PnL
+
+administration/  — Admin and system management
+  models.py      — Trade, Prediction, BotConfig, SystemSettings
+  views.py       — StatsView, UserListCreateView, UserDetailView,
+                   CeleryLogsView, AuditLogsView, MLModelsView
+  serializers.py — UserSerializer, UserCreateSerializer
+
+ML_SERVICE/     — FastAPI LSTM inference engine
+  main.py        — /api/v1/predict/{ticker} endpoint
+
+================================================================================
+9. DATABASE MODELS (administration/models.py)
+================================================================================
++---------------+--------------------------------------------------+----------------+
+| Model         | Fields                                           | Link           |
++---------------+--------------------------------------------------+----------------+
+| Trade         | user(FK), symbol, action, price, quantity,       | user FK       |
+|               | profit_loss, confidence, executed_at              |               |
+| Prediction    | symbol, signal, confidence, predicted_price,       | —             |
+|               | actual_price, created_at                          |               |
+| BotConfig     | user(1:1), is_active, min_confidence,            | user FK       |
+|               | max_trade_amount, stop_loss_pct, paper_trading    |               |
+| SystemSettings| trading_enabled, max_trade_amount, risk_level,   | Singleton PK=1 |
+|               | auto_trade, min_confidence, updated_at            |               |
++---------------+--------------------------------------------------+----------------+
+
+NOTE: There is NO Portfolio model. Portfolio is computed dynamically by
+PortfolioService.get_user_portfolio(user), which aggregates Trade records
+and calls PredictionService per-position (⚠️ performance issue).
+
+================================================================================
+10. API ENDPOINTS (Full List)
+================================================================================
+AUTH:
+  POST /api/token/              — Obtain JWT (CUSTOM serializer — has is_staff)
+  POST /api/token/refresh/      — Refresh JWT access token
+
+TRADING (trading/urls.py):
+  GET  /api/v1/trades/           — List trades (admin=ALL, user=OWN)
+  POST /api/v1/trade/            — Execute a trade (via TradeService)
+  GET  /api/v1/portfolio/        — User portfolio (aggregated trades)
+  GET  /api/v1/predictions/      — List all predictions [NOT user-filtered]
+  POST /api/v1/predict/{ticker}/ — Request ML prediction + AUTO-TRADE ⚠️ AllowAny
+  GET  /api/v1/market/prices/   — 8 symbols via ML (blocking ⚠️) + fallback
+  GET  /api/v1/health/           — Health check
+  GET  /api/v1/my-config/        — Current user's BotConfig
+  GET  /api/v1/settings/         — SystemSettings (GET/PATCH) ⚠️ 403 for non-superuser
+  GET  /api/v1/logs/celery/      — Celery task logs (MOCKED)
+  GET  /api/v1/logs/audit/       — Audit logs (MOCKED)
+  GET  /api/v1/ml/models/         — ML model status (MOCKED)
+
+ADMINISTRATION (administration/urls.py):
+  GET  /api/users/               — List all users [IsAdminUser]
+  POST /api/users/              — Create user [IsAdminUser]
+  GET  /api/users/{id}/          — User detail [IsAdminUser]
+  DELETE /api/users/{id}/       — Delete user [IsAdminUser]
+  POST /api/users/{id}/toggle/  — Toggle active status [IsAdminUser]
+  GET  /api/stats/              — Dashboard aggregation stats [IsAdminUser]
+
+================================================================================
+11. KEY SERVICE FLOWS
+================================================================================
+
+A) ML PREDICTION + AUTO-TRADE FLOW:
+User → GET /api/v1/predict/{TICKER}/
+  → PredictionProxyView (permission=AllowAny ⚠️)
+    → PredictionService.get_prediction()
+      → GET http://localhost:8001/api/v1/predict/{TICKER} (ML Service, 5s timeout)
+      → Prediction.objects.create() (DB write on EVERY call ⚠️)
+    ← { ticker, signal, confidence, price, valid, latency_ms }
+    → _maybe_auto_trade(request, prediction, result):
+        IF settings.auto_trade == True
+        AND signal != "HOLD"
+        AND confidence >= settings.min_confidence
+        AND BotConfig.is_active == True
+        AND BotConfig.paper_trading == False
+        AND BotConfig.max_trade_amount / price > 0
+        THEN:
+          TradeService.execute_trade(user, ticker, signal, qty)
+          → Trade.objects.create()
+          result["auto_executed"] = True
+        ELSE:
+          result["auto_trade_skipped"] = "<reason>"
+  ← Response with { ticker, signal, confidence, price, auto_executed,
+                    trade_id, auto_trade_skipped }
+
+B) PORTFOLIO AGGREGATION (⚠️ PERFORMANCE ISSUE):
+User → GET /api/v1/portfolio/
+  → PortfolioService.get_user_portfolio(user)
+    → Trade.objects.filter(user=user).order_by('executed_at')
+    → initial_balance = BotConfig.max_trade_amount or 10000
+    → For EACH symbol (sequential ⚠️):
+        PredictionService.get_prediction(symbol)  ← 5s timeout EACH
+        Calculates avg_entry_price, unrealized_pnl
+    → Returns: { balance, pnl, positions[], history[] }
+  ← { balance, pnl, positions, history }
+
+C) MANUAL TRADE EXECUTION (TradePage — fully defensive):
+User → POST /api/v1/trade/ { ticker, action, quantity }
+  Pre-submit validation:
+    BUY:  if quantity * price > balance        → "Insufficient balance"
+    BUY:  if quantity * price > maxTradeAmount → "Exceeds system limit"
+    SELL: if quantity > positionQty            → "Not enough asset to sell"
+  Blocked API call if validation fails (button disabled)
+  → TradeService.execute_trade(user, ticker, action, quantity)
+    → PredictionService.get_prediction(ticker) (current price)
+    → Validates balance, max_trade_amount
+    → Trade.objects.create()
+  ← Trade object returned
+
+D) MARKET PRICES FLOW (⚠️ PERFORMANCE ISSUE):
+User → GET /api/v1/market/prices/
+  → MarketPricesView (permission=AllowAny)
+    → Loops 8 symbols SEQUENTIALLY ⚠️:
+        PredictionService.get_prediction(symbol)  ← up to 5s EACH = 40s worst case
+    → If ML down: returns STATIC FALLBACK MOCK DATA (BTC=$70000, etc.)
+  ← Array of { symbol, price, change, change_pct, high, low, volume }
+
+================================================================================
+12. AUTO-TRADE SYSTEM
+================================================================================
+
+Backend: PredictionProxyView._maybe_auto_trade()
+  Checks (in order):
+    1. SystemSettings.auto_trade == True
+    2. signal != "HOLD"
+    3. confidence >= SystemSettings.min_confidence (default 0.75)
+    4. BotConfig.is_active == True for user
+    5. BotConfig.paper_trading == False for user
+  If all pass:
+    quantity = BotConfig.max_trade_amount / prediction["price"]
+    trade = TradeService.execute_trade(user, ticker, signal, qty)
+    result["auto_executed"] = True
+    result["trade_id"] = trade.id
+  If any fail:
+    result["auto_trade_skipped"] = "<reason>"
+
+Frontend: DashboardPage.js (src/features/dashboard/)
+  After prediction response:
+    auto_executed=true  → Green banner "Trade Executed Automatically"
+    auto_trade_skipped → Yellow banner + reason + manual execute button
+    auto_trade_error   → Red banner with error message
+
+================================================================================
+13. KNOWN ISSUES (LAST UPDATED: 2026-04-14 Late)
+================================================================================
+🔴 CRITICAL (breaks system):
+  1. POST /api/register/ does not exist — RegisterPage always 404s
+  2. GET /api/v1/metrics/ does not exist — /app/metrics always fails
+  3. GET /api/v1/backtest/{ticker}/ does not exist — backtesting fails
+  4. PortfolioService calls PredictionService PER POSITION — up to 5 sequential
+     ML calls per portfolio load (5 × 5s = 25s worst case when ML is slow)
+  5. MarketPricesView calls PredictionService 8× SEQUENTIALLY — 40s worst case
+     when ML service is down before returning static fallback
+  6. PredictionService saves Prediction to DB on EVERY ML call — adds latency
+  7. 401 response in apiClient: window.location.href="/login" — HARD PAGE RELOAD
+     All in-memory caches (marketStore, portfolioStore) are lost. Component
+     re-mounts from scratch. No way to restore session gracefully.
+
+🟠 HIGH (wrong behavior):
+  8. PredictionProxyView is AllowAny — anonymous users can trigger predictions
+     Auto-trade is blocked by _maybe_auto_trade checks, but prediction itself
+     is exposed. DDoS surface: 8× ML calls per market prices request.
+  9. GET /api/v1/predictions/ returns ALL predictions — not filtered by user
+     Client users can see all platform predictions.
+ 10. Refresh tokens do NOT include is_staff/is_superuser claims
+     Only access tokens have custom claims. Full re-login required on expiry.
+ 11. Module-level caches (marketStore, portfolioStore) are NOT cleared on logout
+     If user A logs in, browses, logs out, user B logs in — caches still hold
+     user A's data. Must call clearPricesCache() + clearPortfolioCache() on
+     logout or on login.
+ 12. Settings endpoint (/api/v1/settings/) returns 403 for non-superuser
+     TradePage fetches this on load — if 403, settings falls back to Infinity
+     (acceptable fallback, but 403 pollutes logs)
+
+🟡 MEDIUM (architecture):
+ 13. Old frontend (src/App.js) is legacy dead code (was rewritten but unused)
+ 14. client.js api{} object unused by modern features
+ 15. is_staff stored as string "true"/"false" in localStorage (type confusion)
+ 16. In-flight request deduplication missing — if two components call
+      getPortfolio() simultaneously before either resolves, both hit the API.
+      No request deduplication at the store layer.
+
+================================================================================
+14. WHAT WAS FIXED THIS SESSION (2026-04-14 Late)
+================================================================================
+
+ADMIN LAYOUT REFACTOR:
+  ✅ Created src/components/admin/AdminLayout.js — shared layout for /admin/*
+  ✅ Extracted layout from Dashboard.js — now pure content component
+  ✅ Updated routes.js — nested AdminLayout wrapping all admin routes
+  ✅ Updated App.js — nested AdminLayout route structure
+  ✅ Deleted src/pages/Dashboard.jsx (dead code duplicate)
+  ✅ Rewrote src/App.js as clean React Router v6 (unused legacy entry)
+  ✅ Fixed onNavigate removal across admin pages
+  ✅ All admin pages now use: <div className="admin-page"> wrapper
+  ✅ CSS class consistency: .admin-page, .page-header, .page-content
+  ✅ Fixed Users.js — added missing CSS (stats-grid, table styles, badges)
+  ✅ Fixed MLModels.js — removed </style} syntax error
+
+CLIENT DATA-FETCHING ARCHITECTURE:
+  ✅ Created src/store/marketStore.js — centralized prices with 30s TTL cache
+  ✅ Created src/store/portfolioStore.js — centralized portfolio with 30s TTL cache
+  ✅ DashboardPage.js — uses marketStore, prediction only on ticker change
+  ✅ PortfolioPage.js — uses portfolioStore, all .slice() calls guarded
+  ✅ TradePage.js — uses both stores, independent loading, disabled button,
+                    MAX button, clean error UI, pre-submit validation
+  ✅ apiClient — added [apiClient] → / ← console logs per request
+  ✅ All useEffect: proper [], mounted guard, guaranteed loading-exit
+
+================================================================================
+15. USERS CREATED
+================================================================================
+admin     — is_staff=True, is_superuser=True  (full access)
+client1   — is_staff=False, is_superuser=False (client dashboard only)
+          — password: 123456
+
+================================================================================
+16. HOW TO RUN (LOCAL)
+================================================================================
+A) PREREQUISITES:
+   - Python 3.10+, Node.js 18+, PostgreSQL 15, Redis
+
+B) BACKEND:
+   cd backend
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   python manage.py makemigrations administration
+   python manage.py migrate
+   python manage.py runserver 0.0.0.0:8000
+
+C) ML SERVICE (optional — falls back to static prices if down):
+   cd ml_service
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   uvicorn main:app --host 0.0.0.0 --port 8001
+
+D) FRONTEND:
+   cd frontend
+   npm install
+   npm start
+
+E) CREATE TEST USERS:
+   python manage.py shell -c "
+   from django.contrib.auth.models import User
+   User.objects.create_user(username='admin', password='password',
+                            is_staff=True, is_superuser=True)
+   User.objects.create_user(username='client1', password='123456',
+                            is_staff=False, is_superuser=False)
+   print('Users created')
+   "
+
+================================================================================
+17. ENVIRONMENT VARIABLES (.env)
+================================================================================
+DEBUG=True
+SECRET_KEY=<your-secret-key>
+POSTGRES_DB=trading_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_HOST=localhost
+REDIS_URL=redis://localhost:6379
+ML_SERVICE_URL=http://localhost:8001
+
+================================================================================
