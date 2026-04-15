@@ -32,6 +32,8 @@ class PortfolioService:
 
         positions = []
         for symbol in symbols:
+            if not symbol:
+                continue
             symbol_trades = trades.filter(symbol=symbol)
             qty_buy = (
                 symbol_trades.filter(action="BUY").aggregate(total=Sum("quantity"))[
@@ -64,7 +66,7 @@ class PortfolioService:
 
                 positions.append(
                     {
-                        "symbol": symbol,
+                        "symbol": symbol or "UNKNOWN",
                         "quantity": float(current_qty),
                         "avg_entry_price": avg_entry_price,
                         "current_price": current_price,
@@ -82,12 +84,12 @@ class PortfolioService:
             "positions": positions,
             "history": [
                 {
-                    "symbol": t.symbol or "UNKNOWN",
                     "action": t.action,
+                    "symbol": t.symbol or "UNKNOWN",
                     "quantity": float(t.quantity),
                     "price": float(t.price),
                     "executed_at": t.executed_at.isoformat() if t.executed_at else None,
                 }
-                for t in trades.order_by("-executed_at")[:10]
+                for t in trades.order_by("-executed_at")[:5]
             ],
         }
