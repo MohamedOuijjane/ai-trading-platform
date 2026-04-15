@@ -270,6 +270,19 @@ npm start
 
 ---
 
+## 👥 Contributors
+
+- **Mohamed Ouijjane**  
+  🔗 https://github.com/MohamedOuijjane  
+
+- **Yassine Meskaoui**  
+  🔗 https://github.com/Azepuo  
+
+- **Moumen Mariam**  
+  🔗 https://github.com/MariamMoumen1
+  
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome!
